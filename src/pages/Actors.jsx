@@ -1,42 +1,26 @@
-import { useActorsStore } from "../store/actors";
+import { useMemo, useState } from 'react'
+import { useActorsStore } from '../store/actors'
+import ActorsGrid from '../components/ActorsGrid'
+import SearchBar from '../components/SearchBar'
 
 export default function Actors() {
-  const raw = useActorsStore((s) => s.list) || [];
-  const actors = (Array.isArray(raw) ? raw : []).map((a) => ({
-    id: a?.id,
-    name: a?.name ?? "",
-    avatarUrl: a?.avatarUrl ?? "",
-    bio: a?.bio ?? "",
-  }));
+  const actors = useActorsStore(s => s.list) || []
+  const [q, setQ] = useState('')
 
-  if (!actors.length) {
-    return <div className="p-4">Загрузка актёров...</div>;
-  }
+  const filtered = useMemo(()=>{
+    const ql = q.trim().toLowerCase()
+    return (Array.isArray(actors) ? actors : []).filter(a =>
+      !ql || (a?.name || '').toLowerCase().includes(ql)
+    )
+  }, [actors, q])
 
   return (
-    <section className="grid gap-4 p-4">
-      {actors.map((actor) => (
-        <article
-          key={actor.id}
-          className="border rounded-lg p-3 shadow-sm hover:shadow-md transition"
-        >
-          <h3 className="font-bold text-lg">{actor.name}</h3>
-
-          {actor.avatarUrl && (
-            <img
-              src={actor.avatarUrl}
-              alt={actor.name}
-              className="w-full rounded-lg my-2"
-            />
-          )}
-
-          {/* ✅ защищаем .slice */}
-          <p className="text-sm text-neutral-600">
-            {(actor.bio || "").slice(0, 150)}
-            {actor.bio?.length > 150 ? "..." : ""}
-          </p>
-        </article>
-      ))}
+    <section className="space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold">Актёры</h1>
+        <SearchBar value={q} onChange={setQ} placeholder="Поиск артиста..." />
+      </div>
+      <ActorsGrid actors={filtered} />
     </section>
-  );
+  )
 }

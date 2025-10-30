@@ -1,23 +1,35 @@
-import { useMemo, useState } from 'react'
-import { useActorsStore } from '../store/actors'
-import ActorsGrid from '../components/ActorsGrid'
-import SearchBar from '../components/SearchBar'
+import { Link } from 'react-router-dom'
 
 export default function Home(){
-  const actors = useActorsStore(s=>s.list)
-  const [q,setQ] = useState('')
-  const filtered = useMemo(()=>{
-    const ql = q.trim().toLowerCase()
-    return actors.filter(a=> !ql || (a.name||'').toLowerCase().includes(ql))
-  },[actors,q])
-
   return (
-    <section className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Артисты</h1>
-        <SearchBar value={q} onChange={setQ} placeholder="Поиск артиста..." />
+    <section className="space-y-8">
+      <div className="bg-gradient-to-br from-brand-600 to-pink-600 rounded-2xl p-8 text-white">
+        <h1 className="text-3xl font-bold mb-2">Добро пожаловать!</h1>
+        <p className="text-white/90 max-w-2xl">
+          Здесь будет главный экран с любым промо-контентом, акциями, баннерами и т.д.
+        </p>
+        <div className="mt-6">
+          <Link to="/actors" className="btn bg-black/20 hover:bg-black/30 border-white/40">
+            Перейти к артистам
+          </Link>
+        </div>
       </div>
-      <ActorsGrid actors={filtered} />
+
+      {/* Место под будущие секции главной страницы */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <div className="card p-4">
+          <div className="font-semibold mb-1">Секция 1</div>
+          <div className="text-sm text-neutral-400">Описание будущего блока</div>
+        </div>
+        <div className="card p-4">
+          <div className="font-semibold mb-1">Секция 2</div>
+          <div className="text-sm text-neutral-400">Описание будущего блока</div>
+        </div>
+        <div className="card p-4">
+          <div className="font-semibold mb-1">Секция 3</div>
+          <div className="text-sm text-neutral-400">Описание будущего блока</div>
+        </div>
+      </div>
     </section>
   )
 }
