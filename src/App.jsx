@@ -31,6 +31,7 @@ export default function App() {
               <Route path="/actors" element={<Actors />} />
               <Route path="/actors/:id" element={<ActorProfile />} />
               <Route path="/shows" element={<Shows />} />
+              <Route path="/admin" element={<AdminActors />} />
               <Route path="/shows/:id" element={<ShowDetails />} />
               <Route path="/shows/:id/sessions/:sessionId/seats" element={<SeatSelect />} />
               <Route path="/cart" element={<Cart />} />
