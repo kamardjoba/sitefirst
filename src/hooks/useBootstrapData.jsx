@@ -4,21 +4,33 @@ import { useShowsStore } from '../store/shows'
 import { useVenuesStore } from '../store/venues'
 import { api } from '../utils/api'
 
+
+const normalizeShow = (s) => ({
+  id: s.id,
+  title: s.title ?? "",
+  description: s.description ?? "",
+  venueId: s.venueId ?? null,
+  rating: Number(s.rating ?? 0),
+  popularity: Number(s.popularity ?? 0),
+  genres: Array.isArray(s.genres) ? s.genres : [],
+  posterUrl: s.posterUrl ?? "",
+  sessions: Array.isArray(s.sessions) ? s.sessions : [],
+});
+
 export function useBootstrapData(){
   const setActors = useActorsStore(s=>s.set)
   const setShows = useShowsStore(s=>s.set)
   const setVenues = useVenuesStore(s=>s.set)
-  useEffect(()=>{
-    async function load(){
+  useEffect(() => {
+    (async () => {
       const [actors, shows, venues] = await Promise.all([
         api.get('/api/actors').then(r=>r.json()),
-        api.get('/api/shows').then(r=>r.json()),
-        api.get('/api/venues').then(r=>r.json()),
-      ])
-      setActors({ list: actors })
-      setShows({ list: shows })
-      setVenues({ list: venues })
-    }
-    load()
-  },[setActors,setShows,setVenues])
+        api.get('/api/shows').then(r=>r.json()).then(arr => (Array.isArray(arr)?arr:[]).map(normalizeShow)),
+        api.get('/api/venues').then(r=>r.json())
+      ]);
+      setActors({ list: Array.isArray(actors)?actors:[] });
+      setShows({  list: Array.isArray(shows)?shows:[]  });
+      setVenues({ list: Array.isArray(venues)?venues:[] });
+    })();
+  }, []);
 }
