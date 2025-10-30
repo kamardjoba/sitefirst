@@ -7,7 +7,7 @@ export default function AdminActors() {
   const [form, setForm] = useState({ name: "", bio: "", photo: null });
 
   useEffect(() => {
-    fetch(`${API}/api/actors`).then(r => r.json()).then(setActors);
+    fetch(`${API}/api/artists`).then(r => r.json()).then(setActors);
   }, []);
 
   const addActor = async (e) => {
@@ -17,7 +17,7 @@ export default function AdminActors() {
     fd.append("bio", form.bio);
     if (form.photo) fd.append("photo", form.photo);
 
-    const res = await fetch(`${API}/api/admin/actors`, {
+    const res = await fetch(`${API}/api/admin/artists`, {
       method: "POST",
       body: fd
     });
