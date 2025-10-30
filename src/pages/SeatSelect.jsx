@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useShowsStore } from '../store/shows'
 import { useVenuesStore } from '../store/venues'
 import { useCartStore } from '../store/cart'
+import { api } from '../utils/api'
 import SeatPicker from '../components/SeatPicker'
 import SeatLegend from '../components/SeatLegend'
+
 
 export default function SeatSelect(){
   const { id, sessionId } = useParams()
@@ -18,10 +20,12 @@ export default function SeatSelect(){
   const totals = selected.reduce((acc,s)=>acc+s.price,0)
 
   useEffect(()=>{
-    fetch('/mocks/occupiedSeats.json').then(r=>r.json()).then(all=>{
-      const entry = all.find(o=> String(o.sessionId)===String(sessionId))
-      setOccupied(entry?.seats || [])
-    })
+    async function load(){
+      if(!sessionId) return
+      const data = await (await api.get(`/api/occupied-seats?sessionId=${sessionId}`)).json()
+      setOccupied(data) // [{row, col}]
+    }
+    load()
   },[sessionId])
 
   const toggle = (seat)=> {
