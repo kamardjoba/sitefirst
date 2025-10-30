@@ -14,7 +14,7 @@ export default function Shows(){
   const [sort,setSort] = useState('popular')
   const [dateISO,setDateISO] = useState('')
   const cities = useMemo(()=> Array.from(new Set(shows.map(s=>s.venueCity).filter(Boolean))).sort(),[shows])
-  const [city,setCity] = useState('')=useState('popular')
+  const [city,setCity] = useState('')
   const actorsById = useMemo(()=>Object.fromEntries(actors.map(a=>[a.id,a])),[actors])
   const genres = useMemo(()=> Array.from(new Set(shows.flatMap(a=>a.genres))),[shows])
   const filtered = shows
