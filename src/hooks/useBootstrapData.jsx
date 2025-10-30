@@ -14,27 +14,32 @@ const normArtistToActor = (a)=> ({
 })
 
 const normEventToShow = (e)=> {
-  // одна «сессия» на базе startsAt
   const d = new Date(e.startsAt || e.starts_at)
   const dateISO = d.toISOString().slice(0,10)
   const timeISO = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 
   return {
     id: e.id,
+    // 👇 добавили эти поля
+    artistId: e.artistId || e.artist_id,
+    artistName: e.artistName || e.artist_name || '',
+
     title: e.title || `${e.artistName || e.artist_name || 'Концерт'}`,
-    description: '',                       // опционально
+    description: '',
     venueId: e.venueId || e.venue_id,
+    // убедись что это поле уже добавлено ранее:
     venueCity: e.city || e.venueCity || e.venue_city,
+
     rating: 4.8,
     popularity: 100,
-    genres: (e.genre ? [e.genre] : []),    // берём жанр артиста если придёт в details
+    genres: (e.genre ? [e.genre] : []),
     posterUrl: e.artistPhoto || e.artist_photo || '',
     sessions: [
       {
-        id: e.id,          // одна сессия = сам event
+        id: e.id,        // у нас sessionId === eventId
         dateISO,
         timeISO,
-        basePrice: 100,    // базу для сетки дадим потом из /seats (см. SeatSelect)
+        basePrice: 100,
         dynamicFactor: 1
       }
     ]
