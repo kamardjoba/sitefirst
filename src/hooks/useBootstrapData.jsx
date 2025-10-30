@@ -24,6 +24,7 @@ const normEventToShow = (e)=> {
     title: e.title || `${e.artistName || e.artist_name || 'Концерт'}`,
     description: '',                       // опционально
     venueId: e.venueId || e.venue_id,
+    venueCity: e.city || e.venueCity || e.venue_city,
     rating: 4.8,
     popularity: 100,
     genres: (e.genre ? [e.genre] : []),    // берём жанр артиста если придёт в details

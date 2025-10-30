@@ -14,6 +14,8 @@ const Shows = React.lazy(() => import('./pages/Shows'))
 const ShowDetails = React.lazy(() => import('./pages/ShowDetails'))
 const SeatSelect = React.lazy(() => import('./pages/SeatSelect'))
 const Cart = React.lazy(() => import('./pages/Cart'))
+const AdminVenues = React.lazy(() => import('./pages/AdminVenues'))
+const AdminEvents = React.lazy(() => import('./pages/AdminEvents'))
 const Checkout = React.lazy(() => import('./pages/Checkout'))
 const Success = React.lazy(() => import('./pages/Success'))
 const NotFound = React.lazy(() => import('./pages/NotFound'))
@@ -33,6 +35,8 @@ export default function App() {
               <Route path="/actors/:id" element={<ActorProfile />} />
               <Route path="/shows" element={<Shows />} />
               <Route path="/admin" element={<AdminActors/>} />
+              <Route path="/admin/venues" element={<AdminVenues/>} />
+              <Route path="/admin/events" element={<AdminEvents/>} />
               <Route path="/shows/:id" element={<ShowDetails />} />
               <Route path="/shows/:id/sessions/:sessionId/seats" element={<SeatSelect />} />
               <Route path="/cart" element={<Cart />} />

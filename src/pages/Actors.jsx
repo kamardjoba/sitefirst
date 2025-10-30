@@ -5,7 +5,7 @@ export default function Actors() {
   const actors = (Array.isArray(raw) ? raw : []).map((a) => ({
     id: a?.id,
     name: a?.name ?? "",
-    photoUrl: a?.photoUrl ?? "",
+    avatarUrl: a?.avatarUrl ?? "",
     bio: a?.bio ?? "",
   }));
 
@@ -22,9 +22,9 @@ export default function Actors() {
         >
           <h3 className="font-bold text-lg">{actor.name}</h3>
 
-          {actor.photoUrl && (
+          {actor.avatarUrl && (
             <img
-              src={actor.photoUrl}
+              src={actor.avatarUrl}
               alt={actor.name}
               className="w-full rounded-lg my-2"
             />
