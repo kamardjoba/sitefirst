@@ -8,9 +8,18 @@ export const useCartStore = create((set,get)=> ({
   remove: (idx)=> set((s)=> ({ items: s.items.filter((_,i)=>i!==idx) })),
   clear: ()=> set({ items: [], promo: null }),
   applyPromo: async (code)=> {
-        const p = await api.post('/api/promos/validate', { code }).then(r=>r.json())
-        if(p){ set({ promo: { code: p.code, discountPercent: p.discountPercent, validUntilISO: p.validUntil } }); return p }
-        set({ promo: null }); return null
+        const res = await fetch((import.meta.env.VITE_API_BASE||'') + '/api/promos/validate', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ code })
+        })
+        const p = await res.json()
+        if(p){
+          const normalized = { code: p.code, discountPercent: p.discountPct, validUntilISO: p.validUntil }
+          set({ promo: normalized }); return normalized
+        } else {
+          set({ promo: null }); return null
+        }
       },
   totals: ()=> {
     const s = get()

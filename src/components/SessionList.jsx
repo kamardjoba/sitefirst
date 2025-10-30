@@ -8,7 +8,7 @@ export default function SessionList({ show }){
             <div>{new Date(s.dateISO).toLocaleDateString('ru-RU')} · {s.timeISO}</div>
             <div className="text-sm text-neutral-400">От {Math.round(s.basePrice * s.dynamicFactor)} ₽</div>
           </div>
-          <Link className="btn bg-gradient-to-r from-brand-600 to-pink-600 hover:from-brand-700 hover:to-pink-700" to={`/shows/${show.id}/sessions/${s.id}/seats`}>Выбрать места</Link>
+          <Link className="btn ..." to={`/shows/${show.id}/sessions/${s.id}/seats`}>Выбрать места</Link>
         </div>
       ))}
     </div>
