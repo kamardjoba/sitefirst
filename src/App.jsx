@@ -20,6 +20,7 @@ const Checkout = React.lazy(() => import('./pages/Checkout'))
 const Success = React.lazy(() => import('./pages/Success'))
 const NotFound = React.lazy(() => import('./pages/NotFound'))
 const AdminActors = React.lazy(() => import('./pages/AdminActors'))
+const AdminArtistWizard = React.lazy(() => import('./pages/AdminArtistWizard'))
 
 export default function App() {
   useBootstrapData()
@@ -37,6 +38,7 @@ export default function App() {
               <Route path="/admin" element={<AdminActors/>} />
               <Route path="/admin/venues" element={<AdminVenues/>} />
               <Route path="/admin/events" element={<AdminEvents/>} />
+              <Route path="/admin/artist-wizard" element={<AdminArtistWizard />} />
               <Route path="/shows/:id" element={<ShowDetails />} />
               <Route path="/shows/:id/sessions/:sessionId/seats" element={<SeatSelect />} />
               <Route path="/cart" element={<Cart />} />
