@@ -70,34 +70,11 @@ export function useBootstrapData(){
         api.get('/api/events'),
         api.get('/api/venues'),
       ])
-      const [artists, events, venues] = await Promise.all([
-        artistsRes.json(), eventsRes.json(), venuesRes.json()
-      ])
-      
-      // нормализуем события
-      const showsList = Array.isArray(events) ? events.map(normEventToShow) : []
-      
-      // индекс: artistId -> [showId,...]
-      const eventsByArtist = new Map()
-      for (const e of (events || [])) {
-        const aid = e.artistId || e.artist_id
-        if (!aid) continue
-        if (!eventsByArtist.has(aid)) eventsByArtist.set(aid, [])
-        eventsByArtist.get(aid).push(e.id)
-      }
-      
-      // актёрам добавляем поле `shows` (массив id их шоу)
-      const actorsList = Array.isArray(artists)
-        ? artists.map(a => {
-            const base = normArtistToActor(a)
-            base.shows = eventsByArtist.get(a.id) || []
-            return base
-          })
-        : []
-      
-      setActors({ list: actorsList })
-      setShows({  list: showsList })
-      setVenues({ list: Array.isArray(venues) ? venues.map(normVenue) : [] })
+      const [artists, events, venues] = await Promise.all([artistsRes.json(), eventsRes.json(), venuesRes.json()])
+
+      setActors({ list: Array.isArray(artists) ? artists.map(normArtistToActor) : [] })
+      setShows({  list: Array.isArray(events)  ? events.map(normEventToShow)   : [] })
+      setVenues({ list: Array.isArray(venues) ? venues.map(normVenue)          : [] })
     }
     load()
   },[setActors,setShows,setVenues])
