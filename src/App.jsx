@@ -17,6 +17,7 @@ const Cart = React.lazy(() => import('./pages/Cart'))
 const Checkout = React.lazy(() => import('./pages/Checkout'))
 const Success = React.lazy(() => import('./pages/Success'))
 const NotFound = React.lazy(() => import('./pages/NotFound'))
+const AdminActors = React.lazy(() => import('./pages/AdminActors'))
 
 export default function App() {
   useBootstrapData()
