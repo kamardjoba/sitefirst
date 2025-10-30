@@ -19,7 +19,14 @@ export default function Cart(){
       {!!items.length && (
         <div className="grid md:grid-cols-3 gap-6">
           <div className="md:col-span-2 space-y-3">
-            {items.map((it,idx)=> <CartItem key={idx} item={it} show={showsById[it.showId]} onRemove={()=>remove(idx)} />)}
+          {items.map((it,idx)=> (
+  <CartItem
+    key={idx}
+    item={it}
+    show={showsById[it.showId] || showsById[it.eventId] || null}
+    onRemove={()=>remove(idx)}
+  />
+))}
           </div>
           <div className="space-y-3">
             <CartSummary subtotal={totals.subtotal} discount={totals.discount} total={totals.total} onApplyPromo={async(code)=>{ await applyPromo(code) }}/>
