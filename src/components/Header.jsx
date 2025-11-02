@@ -1,9 +1,17 @@
+import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useCartStore } from '../store/cart'
 import { FaTheaterMasks } from 'react-icons/fa'
+import { useAuth } from '../store/auth'
+import AuthModal from './AuthModal'
 
 export default function Header() {
   const count = useCartStore((s) => s.items.length)
+  const { token, user, me, logout } = useAuth()
+  const [open, setOpen] = useState(false)
+
+  useEffect(()=>{ if(token && !user) me() }, [token])
+
   return (
     <header className="sticky top-0 z-20 bg-neutral-950/70 backdrop-blur border-b border-neutral-800">
       <div className="container mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
@@ -13,16 +21,25 @@ export default function Header() {
           </span>
           <span>Театр Онлайн</span>
         </Link>
+
         <nav className="flex items-center gap-4">
-          <NavLink to="/" className={({isActive})=>isActive?'text-white font-medium':'text-neutral-300 hover:text-white'}>Главная</NavLink>
-          <NavLink to="/actors" className={({isActive})=>isActive?'text-white font-medium':'text-neutral-300 hover:text-white'}>Актёры</NavLink>
-          <NavLink to="/shows" className={({isActive})=>isActive?'text-white font-medium':'text-neutral-300 hover:text-white'}>Постановки</NavLink>
-          <NavLink to="/cart" className="relative text-neutral-300 hover:text-white">
-            Корзина
-            <span aria-label="Количество в корзине" className="absolute -top-2 -right-3 text-xs bg-gradient-to-r from-brand-600 to-pink-600 text-white rounded-full px-2 py-0.5">{count}</span>
-          </NavLink>
+          <NavLink to="/actors" className={({isActive})=> (isActive ? "text-white" : "text-neutral-300 hover:text-white")}>Актёры</NavLink>
+
+          {!user ? (
+            <button className="btn" onClick={()=>setOpen(true)}>Войти</button>
+          ) : (
+            <div className="flex items-center gap-3">
+              <Link to="/profile" className="text-neutral-200 hover:text-white">{user.email}</Link>
+              <button className="btn" onClick={logout}>Выйти</button>
+            </div>
+          )}
+
+          <Link to="/cart" className="relative text-neutral-300 hover:text-white">
+            Корзина{count ? ` (${count})` : ''}
+          </Link>
         </nav>
       </div>
+      {open && <AuthModal onClose={()=>setOpen(false)} />}
     </header>
   )
 }

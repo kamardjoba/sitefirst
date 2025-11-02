@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import CheckoutForm from '../components/CheckoutForm'
 import { useCartStore } from '../store/cart'
+import { useAuth } from '../store/auth'
 
 const USER_TOKEN_KEY = 'user_token'
 function getUserToken(){
@@ -15,6 +16,20 @@ export default function Checkout(){
   const promo  = useCartStore(s=>s.promo)
   const clear  = useCartStore(s=>s.clear)
   const go = useNavigate()
+
+  const { token, user } = useAuth()
+
+useEffect(()=>{
+  if(user){
+    setForm(f => ({
+      ...f,
+      name: f.name || user.name || '',
+      email: f.email || user.email || ''
+    }))
+  }
+}, [user])
+
+
 
   return (
     <section className="space-y-4">
