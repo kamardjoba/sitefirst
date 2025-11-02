@@ -7,6 +7,9 @@ import ErrorBoundary from './components/ErrorBoundary'
 import Toasts from './components/Toasts'
 import { useBootstrapData } from './hooks/useBootstrapData'
 
+const AuthPage = React.lazy(() => import('./pages/Auth'))
+
+
 
 const Home = React.lazy(() => import('./pages/Home'))
 const Actors = React.lazy(() => import('./pages/Actors'))
@@ -47,6 +50,7 @@ export default function App() {
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/success" element={<Success />} />
               <Route path="*" element={<NotFound />} />
+              <Route path="/auth" element={<AuthPage />} />
               <Route path="/profile" element={<Profile />} />
             </Routes>
           </Container>

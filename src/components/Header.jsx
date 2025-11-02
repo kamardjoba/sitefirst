@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+// src/components/Header.jsx
+import { useEffect } from 'react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useCartStore } from '../store/cart'
 import { FaTheaterMasks } from 'react-icons/fa'
 import { useAuth } from '../store/auth'
-import AuthModal from './AuthModal'
 
 export default function Header() {
   const count = useCartStore((s) => s.items.length)
   const { token, user, me, logout } = useAuth()
-  const [open, setOpen] = useState(false)
+  const location = useLocation()
 
   useEffect(()=>{ if(token && !user) me() }, [token])
 
@@ -26,7 +26,13 @@ export default function Header() {
           <NavLink to="/actors" className={({isActive})=> (isActive ? "text-white" : "text-neutral-300 hover:text-white")}>Актёры</NavLink>
 
           {!user ? (
-            <button className="btn" onClick={()=>setOpen(true)}>Войти</button>
+            <Link
+              to="/auth"
+              state={{ from: location.pathname }}
+              className="btn"
+            >
+              Войти
+            </Link>
           ) : (
             <div className="flex items-center gap-3">
               <Link to="/profile" className="text-neutral-200 hover:text-white">{user.email}</Link>
@@ -39,7 +45,6 @@ export default function Header() {
           </Link>
         </nav>
       </div>
-      {open && <AuthModal onClose={()=>setOpen(false)} />}
     </header>
   )
 }
