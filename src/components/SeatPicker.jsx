@@ -1,40 +1,64 @@
-import { useMemo } from 'react'
+// Минимальный устойчивый пикер, совместимый с SeatSelect
+export default function SeatPicker({ venue, seats, selected, onToggle }) {
+  const rows = Number(venue?.rows || 0)
+  const cols = Number(venue?.cols || 0)
+  const zones = venue?.zones || {}   // <= защита
 
-export default function SeatPicker({ venue, occupiedSeats=[], selected=[], onToggle, pricing }){
-  const occupiedKey = useMemo(()=> new Set(occupiedSeats.map(s=>`${s.row}-${s.col}`)), [occupiedSeats])
-  const selectedKey = useMemo(()=> new Set(selected.map(s=>`${s.row}-${s.col}`)), [selected])
-  const zoneByRow = useMemo(()=>{
-    const map = new Map()
-    venue.seatingMap.zones.forEach(z=>{ for(let r=z.rows[0]; r<=z.rows[1]; r++){ map.set(r, z) } })
-    return map
-  },[venue])
+  // Словарь занятых: "r-c" -> true
+  const busy = new Set(seats.filter(s => s.status && s.status !== 'available')
+                           .map(s => `${s.row}-${s.seat}`))
+
+  // Быстрый словарь цен: "r-c" -> price
+  const priceByRC = new Map(seats.map(s => [`${s.row}-${s.seat}`, Number(s.price || 0)]))
+
+  // выбранные: "r-c"
+  const selectedRC = new Set(selected.map(s => `${s.row}-${s.col}`))
+
+  const grid = []
+  for (let r = 1; r <= rows; r++) {
+    const rowCells = []
+    for (let c = 1; c <= cols; c++) {
+      const key = `${r}-${c}`
+      const isBusy = busy.has(key)
+      const isSel  = selectedRC.has(key)
+      const price  = priceByRC.get(key) ?? 0
+
+      rowCells.push(
+        <button
+          key={key}
+          type="button"
+          className={[
+            "w-7 h-7 m-0.5 rounded text-xs flex items-center justify-center border",
+            isBusy ? "bg-neutral-800 border-neutral-700 text-neutral-500 cursor-not-allowed"
+                   : isSel ? "bg-pink-600 border-pink-500 text-white"
+                           : "bg-neutral-900 border-neutral-700 hover:bg-neutral-800"
+          ].join(' ')}
+          disabled={isBusy}
+          onClick={() => onToggle({ row: r, col: c, price })}
+          aria-label={`Ряд ${r}, место ${c}`}
+          title={`Ряд ${r}, место ${c}${price ? ` · ${price}` : ''}`}
+        >
+          {c}
+        </button>
+      )
+    }
+    grid.push(
+      <div key={`row-${r}`} className="flex items-center">{rowCells}</div>
+    )
+  }
+
   return (
-    <div className="inline-block border border-neutral-800 rounded-xl p-3 bg-neutral-900/60">
-      <div className="grid gap-1" style={{gridTemplateRows:`repeat(${venue.seatingMap.rows},minmax(0,1fr))`, gridTemplateColumns:`repeat(${venue.seatingMap.cols},minmax(0,1fr))`}}>
-        {Array.from({length: venue.seatingMap.rows}).map((_,r)=> 
-          Array.from({length: venue.seatingMap.cols}).map((_,c)=> {
-            const row=r+1, col=c+1
-            const key=`${row}-${col}`
-            const isOccupied=occupiedKey.has(key)
-            const isSelected=selectedKey.has(key)
-            const zone=zoneByRow.get(row)
-            const price = Math.round((pricing?.base ?? 0) * (pricing?.factor ?? 1) * (zone?.priceFactor ?? 1))
-            const disabled = price<=0
-            return (
-              <button
-                key={key}
-                aria-label={`Ряд ${row} Место ${col}`}
-                disabled={isOccupied||disabled}
-                onClick={()=>onToggle({row, col, price})}
-                className={`w-7 h-7 sm:w-8 sm:h-8 rounded ${isOccupied?'bg-neutral-600': isSelected?'bg-brand-500 text-white':'bg-green-600 text-white'} focus:outline-none focus:ring-2 focus:ring-white`}
-                title={`Ряд ${row}, Место ${col} · ${price} ₽${isOccupied?' · Занято':''}`}
-              >
-                <span className="sr-only">{`Ряд ${row} Место ${col}`}</span>
-              </button>
-            )
-          })
-        )}
+    <div className="space-y-2">
+      <div className="overflow-auto p-2 border border-neutral-800 rounded-xl">
+        {grid}
       </div>
+
+      {/* Простейшая легенда зон: если zones пуст — ничего страшного */}
+      {!!Object.keys(zones).length && (
+        <div className="text-xs text-neutral-400">
+          Зоны: {Object.values(zones).map(z => z.name).join(', ')}
+        </div>
+      )}
     </div>
   )
 }

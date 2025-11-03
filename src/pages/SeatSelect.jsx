@@ -1,4 +1,3 @@
-// src/pages/SeatSelect.jsx
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../utils/api'
@@ -12,34 +11,31 @@ export default function SeatSelect() {
 
   const addToCart = useCartStore(s => s.add)
 
-  const [seatsData, setSeatsData] = useState([])     // [{ seatId, row, seat, zone, status, price }]
+  const [seatsData, setSeatsData] = useState([])   // [{ seatId,row,seat,zone,status,price }]
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
-  const [selected, setSelected] = useState([])        // [{ row, col, price, seatId? }]
+  const [selected, setSelected] = useState([])      // [{ row,col,price,seatId }]
 
-  // загрузка схемы мест/цен
+  // 1) Загружаем места события
   useEffect(() => {
     let alive = true
-    async function load() {
+    ;(async () => {
       setLoading(true); setError('')
       try {
         const res = await api.get(`/api/events/${eventId}/seats`)
-        if (!res.ok) throw new Error('failed_fetch_seats')
+        if (!res.ok) throw new Error('fetch_failed')
         const data = await res.json()
-        if (alive) {
-          setSeatsData(Array.isArray(data) ? data : [])
-        }
+        if (alive) setSeatsData(Array.isArray(data) ? data : [])
       } catch (e) {
         if (alive) setError('Не удалось загрузить схему зала')
       } finally {
         if (alive) setLoading(false)
       }
-    }
-    if (eventId) load()
+    })()
     return () => { alive = false }
   }, [eventId])
 
-  // быстрый доступ к id/цене по row-col
+  // 2) Быстрые мапы по (row,col)
   const seatIdByRC = useMemo(() => {
     const m = new Map()
     for (const s of seatsData) m.set(`${s.row}-${s.seat}`, s.seatId)
@@ -52,34 +48,34 @@ export default function SeatSelect() {
     return m
   }, [seatsData])
 
-  // данные для отрисовки сетки (минимум — размеры)
+  // 3) Собираем venue для пикера: rows/cols + безопасное zones
   const venueForPicker = useMemo(() => {
     if (!seatsData.length) return null
-  
-    const maxRow  = Math.max(...seatsData.map(s => Number(s.row)))
-    const maxSeat = Math.max(...seatsData.map(s => Number(s.seat)))
-  
-    // построим минимальный словарь зон из приходящих мест
+
+    const maxRow  = Math.max(...seatsData.map(s => Number(s.row || 0)))
+    const maxSeat = Math.max(...seatsData.map(s => Number(s.seat || 0)))
+
+    // Построим мини-справочник зон (если zone не приходит — будет пустой объект)
+    const zoneSet = new Set(seatsData.map(s => s.zone).filter(Boolean))
     const zones = Object.fromEntries(
-      Array.from(new Set(seatsData.map(s => s.zone).filter(Boolean)))
-        .map(z => [z, { code: z, name: z }])
+      Array.from(zoneSet).map(z => [z, { code: z, name: z }])
     )
-  
-    return { rows: maxRow, cols: maxSeat, zones } // <-- теперь есть zones
+
+    return { rows: maxRow, cols: maxSeat, zones }   // <= всегда есть zones (пусть и пустой)
   }, [seatsData])
 
-  // запрет клика до загрузки схемы
+  // 4) Переключение места
   function toggle(seat) {
+    // Пока seatsData не подгружены — ничего не делаем
     if (!seatsData.length) return
 
-    const key      = `${seat.row}-${seat.col}`
-    const seatId   = seatIdByRC.get(key)
-    const realPrice= seatPriceByRC.get(key) ?? seat.price
+    const key = `${seat.row}-${seat.col}`
+    const seatId = seatIdByRC.get(key)
+    const price  = seatPriceByRC.get(key) ?? seat.price
 
-    // если почему-то не нашли seatId — не добавляем битые позиции
-    if (!seatId) return
+    if (!seatId) return  // без seatId не добавляем "битое" место
 
-    const enriched = { ...seat, price: realPrice, seatId }
+    const enriched = { ...seat, price: Number(price || 0), seatId }
     const mk = (s) => `${s.row}-${s.col}`
 
     setSelected(cur =>
@@ -89,6 +85,7 @@ export default function SeatSelect() {
     )
   }
 
+  // 5) Добавление в корзину
   const disabledAdd =
     !seatsData.length || !selected.length || selected.some(s => !s.seatId)
 
@@ -106,59 +103,37 @@ export default function SeatSelect() {
     navigate('/cart')
   }
 
+  // UI
   if (loading) {
-    return (
-      <section className="p-4">
-        <div className="text-neutral-400">Загружаем схему зала…</div>
-      </section>
-    )
+    return <section className="p-4"><div className="text-neutral-400">Загружаем схему зала…</div></section>
+  }
+  if (error || !seatsData.length) {
+    return <section className="p-4"><div className="text-red-400">{error || 'Нет данных по местам'}</div></section>
   }
 
-  if (error || !seatsData.length) {
-    return (
-      <section className="p-4">
-        <div className="text-red-400">{error || 'Нет данных по местам'}</div>
-      </section>
-    )
-  }
+  const safeVenue = venueForPicker || { rows: 0, cols: 0, zones: {} }
 
   return (
     <section className="space-y-4">
       <h1 className="text-2xl font-bold">Выбор мест</h1>
 
-      {/* Схема зала */}
       <div className="card p-4">
-        {venueForPicker ? (
-          <SeatPicker
-            // минимальный набор, если у тебя есть дополнительные пропсы — оставь их
-            venue={venueForPicker}
-            seats={seatsData}
-            selected={selected}
-            onToggle={toggle}
-          />
-        ) : (
-          <div className="text-neutral-400">Схема недоступна</div>
-        )}
+        <SeatPicker
+          venue={safeVenue}         // всегда есть zones (хотя бы пустой объект)
+          seats={seatsData}
+          selected={selected}
+          onToggle={toggle}
+        />
       </div>
 
-      {/* Итог и переход в корзину */}
       <div className="flex items-center justify-between">
         <div className="text-neutral-300">
           Выбрано: <b>{selected.length}</b>
           {!!selected.length && (
-            <>
-              {' '}· Сумма:{' '}
-              <b>
-                {selected.reduce((sum, s) => sum + Number(s.price || 0), 0)}
-              </b>
-            </>
+            <> · Сумма: <b>{selected.reduce((s, x) => s + Number(x.price || 0), 0)}</b></>
           )}
         </div>
-        <button
-          className="btn"
-          disabled={disabledAdd}
-          onClick={addSelectedToCart}
-        >
+        <button className="btn" disabled={disabledAdd} onClick={addSelectedToCart}>
           В корзину
         </button>
       </div>
