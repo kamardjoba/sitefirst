@@ -10,6 +10,30 @@ function getUserToken(){
   return t
 }
 
+
+const { token, user } = useAuth()
+const clear = useCartStore(s=>s.clear)
+const navigate = useNavigate()
+
+// payload: { event_id, seat_ids, buyer:{name,email}, promo_code? }
+const res = await fetch(`${API}/api/orders`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  },
+  body: JSON.stringify(payload)
+})
+
+if (!res.ok) {
+  const data = await res.json().catch(()=>({}))
+  throw new Error(data.error || 'order_failed')
+}
+
+const data = await res.json()
+clear()
+navigate(`/success?order=${encodeURIComponent(data.order_id)}`)
+
 export default function Checkout(){
   const totals = useCartStore(s=>s.totals)()
   const items  = useCartStore(s=>s.items)
