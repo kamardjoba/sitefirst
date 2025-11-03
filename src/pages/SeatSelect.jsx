@@ -55,9 +55,17 @@ export default function SeatSelect() {
   // данные для отрисовки сетки (минимум — размеры)
   const venueForPicker = useMemo(() => {
     if (!seatsData.length) return null
+  
     const maxRow  = Math.max(...seatsData.map(s => Number(s.row)))
     const maxSeat = Math.max(...seatsData.map(s => Number(s.seat)))
-    return { rows: maxRow, cols: maxSeat }
+  
+    // построим минимальный словарь зон из приходящих мест
+    const zones = Object.fromEntries(
+      Array.from(new Set(seatsData.map(s => s.zone).filter(Boolean)))
+        .map(z => [z, { code: z, name: z }])
+    )
+  
+    return { rows: maxRow, cols: maxSeat, zones } // <-- теперь есть zones
   }, [seatsData])
 
   // запрет клика до загрузки схемы
