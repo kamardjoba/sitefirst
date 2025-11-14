@@ -27,8 +27,28 @@ export default function AdminActors() {
   };
 
   const del = async (id) => {
-    await fetch(`${API}/api/admin/actors/${id}`, { method: "DELETE" });
-    setActors((a) => a.filter(x => x.id !== id));
+    if (!confirm("Удалить актёра и все связанные данные? Это действие необратимо.")) return;
+  
+    try {
+      const res = await fetch(`${API}/api/admin/actors/${id}`, {
+        method: "DELETE",
+        // если у вас используется авторизация через JWT в header:
+        // headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+      });
+  
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert("Ошибка при удалении: " + (err.error || err.detail || res.statusText));
+        return;
+      }
+  
+      // успешно удалено — обновляем список
+      setActors((a) => a.filter(x => x.id !== id));
+      alert("Актёр успешно удалён");
+    } catch (e) {
+      console.error("delete actor failed:", e);
+      alert("Сетeвая ошибка при удалении");
+    }
   };
 
   return (
