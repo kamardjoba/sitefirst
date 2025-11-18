@@ -4,6 +4,7 @@ import CheckoutForm from '../components/CheckoutForm'
 import { useCartStore } from '../store/cart'
 import { useAuth } from '../store/auth'
 import { useShowsStore } from '../store/shows'
+import { DEFAULT_CURRENCY_LABEL, formatCurrency } from '../utils/currency'
 
 const API = import.meta.env.VITE_API_BASE || ''
 const USER_TOKEN_KEY = 'user_token'
@@ -29,6 +30,9 @@ function buildOrderSummary({ items, totals, buyer, promo, apiResponse, shows }) 
     show?.sessions?.[0] ||
     null
 
+  const currency = apiResponse?.currency || totals?.currency || DEFAULT_CURRENCY_LABEL
+  const totalsWithCurrency = { ...totals, currency }
+
   return {
     orderId:
       apiResponse?.order_id ||
@@ -46,11 +50,12 @@ function buildOrderSummary({ items, totals, buyer, promo, apiResponse, shows }) 
           discountPercent: promo.discountPercent,
         }
       : null,
-    totals,
+    totals: totalsWithCurrency,
     when: new Date().toISOString(),
     items: items.map(it => ({
       seat: it.seat,
       price: Number(it.price || 0),
+      currency,
       sessionId: it.sessionId || it.eventId,
       session: session
         ? { dateISO: session.dateISO, timeISO: session.timeISO }
@@ -165,7 +170,7 @@ export default function Checkout() {
       </div>
 
       <div className="text-neutral-400 text-sm">
-        Итого к оплате: {totals.total} ₽
+        Итого к оплате: {formatCurrency(totals.total, totals.currency)}
       </div>
 
       <div className="mt-2 text-xs text-neutral-500">

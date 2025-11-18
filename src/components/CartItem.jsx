@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { formatCurrency } from '../utils/currency'
 
 export default function CartItem({ item, show, onRemove }){
   const session = useMemo(() => {
@@ -24,7 +25,7 @@ export default function CartItem({ item, show, onRemove }){
         </div>
       </div>
       <div className="flex items-center gap-4">
-        <div className="font-semibold">{Number(item?.price || 0)} ₽</div>
+        <div className="font-semibold">{formatCurrency(item?.price)}</div>
         <button className="text-neutral-400 hover:text-red-400" onClick={onRemove} aria-label="Удалить">×</button>
       </div>
     </div>

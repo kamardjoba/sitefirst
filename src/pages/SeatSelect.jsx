@@ -3,11 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../utils/api'
 import { useCartStore } from '../store/cart'
 import SeatPicker from '../components/SeatPicker'
+import { formatCurrency } from '../utils/currency'
 
 export default function SeatSelect() {
   const { id, sessionId: sessionIdParam } = useParams()
   const eventId = Number(id)
   const sessionId = sessionIdParam ? Number(sessionIdParam) : null
+  const seatEventId = sessionId || eventId
   const navigate = useNavigate()
 
   const addToCart = useCartStore(s => s.add)
@@ -21,39 +23,19 @@ export default function SeatSelect() {
   useEffect(() => {
     let alive = true
     ;(async () => {
+      if (!seatEventId) {
+        setSeatsData([])
+        setError('Некорректный идентификатор события')
+        setLoading(false)
+        return
+      }
       setLoading(true)
       setError('')
       try {
-        const endpoints = sessionId
-          ? [
-              `/api/events/${eventId}/sessions/${sessionId}/seats`,
-              `/api/events/${eventId}/seats`,
-            ]
-          : [`/api/events/${eventId}/seats`]
-
-        let seatsPayload = []
-        let lastError = null
-
-        for (const path of endpoints) {
-          try {
-            const res = await api.get(path)
-            if (!res.ok) {
-              lastError = new Error(`fetch_failed_${res.status}`)
-              continue
-            }
-            const data = await res.json()
-            seatsPayload = Array.isArray(data) ? data : []
-            lastError = null
-            break
-          } catch (innerErr) {
-            lastError = innerErr
-          }
-        }
-
-        if (alive) {
-          if (lastError) throw lastError
-          setSeatsData(seatsPayload)
-        }
+        const res = await api.get(`/api/events/${seatEventId}/seats`)
+        if (!res.ok) throw new Error(`fetch_failed_${res.status}`)
+        const data = await res.json()
+        if (alive) setSeatsData(Array.isArray(data) ? data : [])
       } catch (e) {
         if (alive) setError('Не удалось загрузить схему зала')
       } finally {
@@ -63,7 +45,7 @@ export default function SeatSelect() {
     return () => {
       alive = false
     }
-  }, [eventId, sessionId])
+  }, [seatEventId])
 
   // 2) Быстрые мапы по (row,col)
   const seatIdByRC = useMemo(() => {
@@ -162,7 +144,7 @@ export default function SeatSelect() {
         <div className="text-neutral-300">
           Выбрано: <b>{selected.length}</b>
           {!!selected.length && (
-            <> · Сумма: <b>{selected.reduce((s, x) => s + Number(x.price || 0), 0)}</b></>
+            <> · Сумма: <b>{formatCurrency(selected.reduce((s, x) => s + Number(x.price || 0), 0))}</b></>
           )}
         </div>
         <button className="btn" disabled={disabledAdd} onClick={addSelectedToCart}>

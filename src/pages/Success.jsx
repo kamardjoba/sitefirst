@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { DEFAULT_CURRENCY_LABEL, formatCurrency } from '../utils/currency'
 
 export default function Success(){
   const location = useLocation()
@@ -31,6 +32,8 @@ export default function Success(){
     )
   }
 
+  const orderCurrency = order?.totals?.currency || order?.items?.[0]?.currency || DEFAULT_CURRENCY_LABEL
+
   const handlePrint = ()=> {
     const w = window.open('', '_blank')
     if(!w) return
@@ -44,10 +47,10 @@ export default function Success(){
         <ul>
           ${(order.items || []).map(i=>{
             const sessionText = i.session?.dateISO ? `${i.session.dateISO} ${i.session.timeISO || ''}` : ''
-            return `<li>${sessionText} · Ряд ${i.seat?.row ?? '—'} Место ${i.seat?.col ?? '—'} — ${i.price} ₽</li>`
+            return `<li>${sessionText} · Ряд ${i.seat?.row ?? '—'} Место ${i.seat?.col ?? '—'} — ${formatCurrency(i.price, i.currency || orderCurrency)}</li>`
           }).join('')}
         </ul>
-        <p><strong>Итого: ${order.totals?.total ?? 0} ₽</strong></p>
+        <p><strong>Итого: ${formatCurrency(order.totals?.total ?? 0, orderCurrency)}</strong></p>
       </div>
       <script>window.print();</script>
       </body></html>`
@@ -66,11 +69,11 @@ export default function Success(){
         <div className="space-y-1">
           {(order.items || []).map((i,idx)=> (
             <div key={idx}>
-              Ряд {i.seat?.row ?? '—'}, место {i.seat?.col ?? '—'} — {i.price} ₽
+              Ряд {i.seat?.row ?? '—'}, место {i.seat?.col ?? '—'} — {formatCurrency(i.price, i.currency || orderCurrency)}
             </div>
           ))}
         </div>
-        <div className="font-semibold">Итого: {order.totals?.total ?? 0} ₽</div>
+        <div className="font-semibold">Итого: {formatCurrency(order.totals?.total ?? 0, orderCurrency)}</div>
         <div className="flex gap-3">
           <button className="btn bg-gradient-to-r from-brand-600 to-pink-600 hover:from-brand-700 hover:to-pink-700" onClick={handlePrint}>Скачать PDF</button>
           <Link className="btn" to="/">На главную</Link>

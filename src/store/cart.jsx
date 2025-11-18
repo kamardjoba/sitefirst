@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { api } from '../utils/api'
+import { DEFAULT_CURRENCY_LABEL } from '../utils/currency'
 
 export const useCartStore = create((set,get)=> ({
   items: [],
@@ -35,9 +36,9 @@ export const useCartStore = create((set,get)=> ({
       },
   totals: ()=> {
     const s = get()
-    const subtotal = s.items.reduce((acc,i)=> acc + (i.price||0), 0)
+    const subtotal = s.items.reduce((acc,i)=> acc + (Number(i.price)||0), 0)
     const discount = s.promo ? Math.round(subtotal * (s.promo.discountPercent/100)) : 0
     const total = Math.max(0, subtotal - discount)
-    return { subtotal, discount, total }
+    return { subtotal, discount, total, currency: DEFAULT_CURRENCY_LABEL }
   }
 }))

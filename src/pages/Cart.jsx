@@ -22,7 +22,13 @@ export default function Cart(){
             {items.map((it,idx)=> <CartItem key={idx} item={it} show={showsById[it.showId] || showsById[it.eventId] || null} onRemove={()=>remove(idx)} />)}
           </div>
           <div className="space-y-3">
-            <CartSummary subtotal={totals.subtotal} discount={totals.discount} total={totals.total} onApplyPromo={async(code)=>{ await applyPromo(code) }}/>
+            <CartSummary
+              subtotal={totals.subtotal}
+              discount={totals.discount}
+              total={totals.total}
+              currency={totals.currency}
+              onApplyPromo={async(code)=>{ await applyPromo(code) }}
+            />
             <button className="btn w-full bg-gradient-to-r from-brand-600 to-pink-600 hover:from-brand-700 hover:to-pink-700" onClick={()=>go('/checkout')} disabled={!items.length}>Оформить</button>
           </div>
         </div>
