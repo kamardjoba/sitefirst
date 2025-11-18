@@ -6,20 +6,66 @@ import Pill from '../components/Pill'
 import DateChips from '../components/DateChips'
 import SearchBar from '../components/SearchBar'
 
+const getSoonestTimestamp = show => {
+  const sessions = Array.isArray(show?.sessions) ? show.sessions : []
+  if (!sessions.length) return Number.MAX_SAFE_INTEGER
+  return Math.min(
+    ...sessions.map(s => {
+      if (!s.dateISO) return Number.MAX_SAFE_INTEGER
+      const ts = Date.parse(s.dateISO)
+      return Number.isNaN(ts) ? Number.MAX_SAFE_INTEGER : ts
+    })
+  )
+}
+
 export default function Shows(){
-  const shows = useShowsStore(s=>s.list)
-  const actors = useActorsStore(s=>s.list)
+  const shows = useShowsStore(s=>s.list) || []
+  const actors = useActorsStore(s=>s.list) || []
   const [q,setQ]=useState('')
   const [genre,setGenre]=useState('')
   const [sort,setSort] = useState('popular')
   const [dateISO,setDateISO] = useState('')
-  const cities = useMemo(()=> Array.from(new Set(shows.map(s=>s.venueCity).filter(Boolean))).sort(),[shows])
   const [city,setCity] = useState('')
+
+  const cities = useMemo(()=> (
+    Array.from(new Set((shows||[]).map(s=>s.venueCity).filter(Boolean))).sort()
+  ),[shows])
+
   const actorsById = useMemo(()=>Object.fromEntries(actors.map(a=>[a.id,a])),[actors])
-  const genres = useMemo(()=> Array.from(new Set(shows.flatMap(a=>a.genres))),[shows])
-  const filtered = shows
-    .filter(s=> s.title.toLowerCase().includes(q.toLowerCase()) && (!genre || s.genres.includes(genre)))
-    .sort((a,b)=> sort==='rating' ? b.rating - a.rating : sort==='date' ? new Date(a.sessions[0].dateISO)-new Date(b.sessions[0].dateISO) : b.popularity - a.popularity)
+
+  const genres = useMemo(()=> (
+    Array.from(
+      new Set(
+        (shows||[]).flatMap(s=>Array.isArray(s.genres) ? s.genres : [])
+      )
+    ).filter(Boolean)
+  ),[shows])
+
+  const filtered = useMemo(()=>{
+    const ql = q.trim().toLowerCase()
+    return (shows || [])
+      .filter(s => {
+        const title = (s?.title || '').toLowerCase()
+        return !ql || title.includes(ql)
+      })
+      .filter(s => !genre || (Array.isArray(s.genres) && s.genres.includes(genre)))
+      .filter(s => !city || s.venueCity === city)
+      .filter(s => {
+        if (!dateISO) return true
+        const sessions = Array.isArray(s.sessions) ? s.sessions : []
+        return sessions.some(sess => sess.dateISO === dateISO)
+      })
+      .sort((a,b)=>{
+        if (sort === 'rating') {
+          return (b.rating || 0) - (a.rating || 0)
+        }
+        if (sort === 'date') {
+          return getSoonestTimestamp(a) - getSoonestTimestamp(b)
+        }
+        return (b.popularity || 0) - (a.popularity || 0)
+      })
+  }, [shows, q, genre, city, dateISO, sort])
+
   return (
     <section className="space-y-4">
       <div className="flex flex-col gap-3">

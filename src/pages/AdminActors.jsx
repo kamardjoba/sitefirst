@@ -30,7 +30,7 @@ export default function AdminActors() {
     if (!confirm("Удалить актёра и все связанные данные? Это действие необратимо.")) return;
   
     try {
-      const res = await fetch(`${API}/api/admin/actors/${id}`, {
+      const res = await fetch(`${API}/api/admin/artists/${id}`, {
         method: "DELETE",
         // если у вас используется авторизация через JWT в header:
         // headers: { "Authorization": "Bearer " + localStorage.getItem("token") }

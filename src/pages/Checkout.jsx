@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import CheckoutForm from '../components/CheckoutForm'
 import { useCartStore } from '../store/cart'
 import { useAuth } from '../store/auth'
+import { useShowsStore } from '../store/shows'
 
 const API = import.meta.env.VITE_API_BASE || ''
 const USER_TOKEN_KEY = 'user_token'
@@ -17,6 +18,47 @@ function getUserToken() {
   return t
 }
 
+function buildOrderSummary({ items, totals, buyer, promo, apiResponse, shows }) {
+  const eventId = items[0]?.eventId || null
+  const show = (Array.isArray(shows) ? shows : []).find(
+    sh => String(sh.id) === String(eventId)
+  )
+  const primarySessionId = items[0]?.sessionId || items[0]?.eventId
+  const session =
+    show?.sessions?.find(s => String(s.id) === String(primarySessionId)) ||
+    show?.sessions?.[0] ||
+    null
+
+  return {
+    orderId:
+      apiResponse?.order_id ||
+      apiResponse?.id ||
+      (crypto?.randomUUID && crypto.randomUUID()) ||
+      String(Date.now()),
+    eventId,
+    showTitle: show?.title || 'Событие',
+    venueCity: show?.venueCity || '',
+    session,
+    buyer,
+    promo: promo?.code
+      ? {
+          code: promo.code,
+          discountPercent: promo.discountPercent,
+        }
+      : null,
+    totals,
+    when: new Date().toISOString(),
+    items: items.map(it => ({
+      seat: it.seat,
+      price: Number(it.price || 0),
+      sessionId: it.sessionId || it.eventId,
+      session: session
+        ? { dateISO: session.dateISO, timeISO: session.timeISO }
+        : null,
+    })),
+  }
+}
+
 export default function Checkout() {
   const navigate = useNavigate()
 
@@ -24,6 +66,7 @@ export default function Checkout() {
   const items  = useCartStore(s => s.items)
   const promo  = useCartStore(s => s.promo)
   const clear  = useCartStore(s => s.clear)
+  const shows  = useShowsStore(s => s.list)
 
   const { token, user } = useAuth()
 
@@ -82,6 +125,16 @@ export default function Checkout() {
       if (!res.ok) {
         throw new Error(data.error || 'order_failed')
       }
+
+      const summary = buildOrderSummary({
+        items,
+        totals,
+        buyer: valuesFromForm,
+        promo,
+        apiResponse: data,
+        shows,
+      })
+      sessionStorage.setItem('order', JSON.stringify(summary))
 
       clear()
       // если бэк возвращает order_id — покажем на success

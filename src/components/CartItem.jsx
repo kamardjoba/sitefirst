@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
 
 export default function CartItem({ item, show, onRemove }){
-  // derive session by eventId (our sessionId === eventId), fallback to first session
   const session = useMemo(() => {
     const list = show?.sessions || []
-    const byId = list.find(s => String(s.id) === String(item.eventId))
+    const targetId = item?.sessionId || item?.eventId
+    const byId = list.find(s => String(s.id) === String(targetId))
     return byId || list[0] || null
-  }, [show, item?.eventId])
+  }, [show, item?.eventId, item?.sessionId])
 
   const dateText = session?.dateISO
     ? new Date(session.dateISO).toLocaleDateString('ru-RU')

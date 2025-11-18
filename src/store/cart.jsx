@@ -8,17 +8,29 @@ export const useCartStore = create((set,get)=> ({
   remove: (idx)=> set((s)=> ({ items: s.items.filter((_,i)=>i!==idx) })),
   clear: ()=> set({ items: [], promo: null }),
   applyPromo: async (code)=> {
-        const res = await fetch((import.meta.env.VITE_API_BASE||'') + '/api/promos/validate', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ code })
-        })
-        const p = await res.json()
-        if(p){
-          const normalized = { code: p.code, discountPercent: p.discountPct, validUntilISO: p.validUntil }
-          set({ promo: normalized }); return normalized
-        } else {
-          set({ promo: null }); return null
+        if(!code){
+          set({ promo: null })
+          return null
+        }
+        try{
+          const res = await api.post('/api/promos/validate', { code })
+          if(!res.ok) throw new Error('invalid_promo')
+          const p = await res.json()
+          const discountPercent = Number(p.discountPercent ?? p.discountPct ?? 0)
+          if(!discountPercent){
+            set({ promo: null })
+            return null
+          }
+          const normalized = {
+            code: p.code,
+            discountPercent,
+            validUntilISO: p.validUntilISO ?? p.validUntil ?? null
+          }
+          set({ promo: normalized })
+          return normalized
+        }catch{
+          set({ promo: null })
+          return null
         }
       },
   totals: ()=> {

@@ -5,8 +5,9 @@ import { useCartStore } from '../store/cart'
 import SeatPicker from '../components/SeatPicker'
 
 export default function SeatSelect() {
-  const { id } = useParams()
+  const { id, sessionId: sessionIdParam } = useParams()
   const eventId = Number(id)
+  const sessionId = sessionIdParam ? Number(sessionIdParam) : null
   const navigate = useNavigate()
 
   const addToCart = useCartStore(s => s.add)
@@ -20,20 +21,49 @@ export default function SeatSelect() {
   useEffect(() => {
     let alive = true
     ;(async () => {
-      setLoading(true); setError('')
+      setLoading(true)
+      setError('')
       try {
-        const res = await api.get(`/api/events/${eventId}/seats`)
-        if (!res.ok) throw new Error('fetch_failed')
-        const data = await res.json()
-        if (alive) setSeatsData(Array.isArray(data) ? data : [])
+        const endpoints = sessionId
+          ? [
+              `/api/events/${eventId}/sessions/${sessionId}/seats`,
+              `/api/events/${eventId}/seats`,
+            ]
+          : [`/api/events/${eventId}/seats`]
+
+        let seatsPayload = []
+        let lastError = null
+
+        for (const path of endpoints) {
+          try {
+            const res = await api.get(path)
+            if (!res.ok) {
+              lastError = new Error(`fetch_failed_${res.status}`)
+              continue
+            }
+            const data = await res.json()
+            seatsPayload = Array.isArray(data) ? data : []
+            lastError = null
+            break
+          } catch (innerErr) {
+            lastError = innerErr
+          }
+        }
+
+        if (alive) {
+          if (lastError) throw lastError
+          setSeatsData(seatsPayload)
+        }
       } catch (e) {
         if (alive) setError('Не удалось загрузить схему зала')
       } finally {
         if (alive) setLoading(false)
       }
     })()
-    return () => { alive = false }
-  }, [eventId])
+    return () => {
+      alive = false
+    }
+  }, [eventId, sessionId])
 
   // 2) Быстрые мапы по (row,col)
   const seatIdByRC = useMemo(() => {
@@ -94,6 +124,8 @@ export default function SeatSelect() {
     selected.forEach(seat => {
       addToCart({
         eventId,
+        showId: eventId,
+        sessionId: sessionId || eventId,
         seatId: seat.seatId,
         seat: { row: seat.row, col: seat.col },
         price: Number(seat.price || 0)
