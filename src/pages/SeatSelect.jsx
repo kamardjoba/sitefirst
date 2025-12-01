@@ -214,25 +214,50 @@ export default function SeatSelect() {
         )}
       </div>
 
-      <div className="card p-6">
+      <div className="card p-6 bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 border-neutral-800">
         <SeatPicker
-          venue={safeVenue}         // всегда есть zones (хотя бы пустой объект)
+          venue={safeVenue}
           seats={seatsData}
           selected={selected}
           onToggle={toggle}
         />
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="text-neutral-300">
-          Выбрано: <b>{selected.length}</b>
-          {!!selected.length && (
-            <> · Сумма: <b>{formatCurrency(selected.reduce((s, x) => s + Number(x.price || 0), 0))}</b></>
-          )}
+      {/* Панель выбранных мест */}
+      <div className="card p-6 bg-gradient-to-r from-brand-600/20 to-pink-600/20 border-brand-500/30">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <div className="text-neutral-300">
+              Выбрано мест: <span className="font-bold text-white text-lg">{selected.length}</span>
+            </div>
+            {!!selected.length && (
+              <div className="text-neutral-400 text-sm">
+                Общая сумма: <span className="font-bold text-brand-400 text-lg">
+                  {formatCurrency(selected.reduce((s, x) => s + Number(x.price || 0), 0))}
+                </span>
+              </div>
+            )}
+            {selected.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {selected.map((seat, idx) => (
+                  <div
+                    key={idx}
+                    className="px-3 py-1 rounded-full bg-brand-500/20 border border-brand-500/50 text-xs text-neutral-200"
+                  >
+                    Ряд {seat.row}, Место {seat.col} · {formatCurrency(seat.price)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            className="btn bg-gradient-to-r from-brand-600 to-pink-600 hover:from-brand-700 hover:to-pink-700 text-white font-bold px-8 py-3 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={disabledAdd}
+            onClick={addSelectedToCart}
+          >
+            Добавить в корзину ({selected.length})
+          </button>
         </div>
-        <button className="btn" disabled={disabledAdd} onClick={addSelectedToCart}>
-          В корзину
-        </button>
       </div>
     </section>
   )
