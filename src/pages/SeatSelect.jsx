@@ -3,7 +3,9 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../utils/api'
 import { useCartStore } from '../store/cart'
 import SeatPicker from '../components/SeatPicker'
+import VenueZonesMap from '../components/VenueZonesMap'
 import { formatCurrency } from '../utils/currency'
+import { FaArrowLeft } from 'react-icons/fa'
 
 export default function SeatSelect() {
   const { id, sessionId: sessionIdParam } = useParams()
@@ -23,6 +25,7 @@ export default function SeatSelect() {
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [selected, setSelected] = useState([])      // [{ row,col,price,seatId }]
+  const [viewMode, setViewMode] = useState('zones') // 'zones' или 'seats'
 
   // 1) Загружаем места события
   useEffect(() => {
@@ -54,12 +57,8 @@ export default function SeatSelect() {
           }
         } else if (data.seats && Array.isArray(data.seats)) {
           if (alive) {
-            // Фильтруем по зоне, если указана
-            let filteredSeats = data.seats
-            if (selectedZone) {
-              filteredSeats = data.seats.filter(s => s.zone === selectedZone)
-            }
-            setSeatsData(filteredSeats)
+            // Всегда загружаем все места для схемы зон
+            setSeatsData(data.seats)
             setZonesInfo(data.zones || [])
           }
         } else {
@@ -77,27 +76,44 @@ export default function SeatSelect() {
     return () => {
       alive = false
     }
-  }, [seatEventId, selectedZone])
+  }, [seatEventId])
 
-  // 2) Быстрые мапы по (row,col)
+  // Определяем режим просмотра на основе URL параметра
+  useEffect(() => {
+    if (selectedZone) {
+      setViewMode('seats')
+    } else {
+      setViewMode('zones')
+    }
+  }, [selectedZone])
+
+  // 2) Фильтруем места по выбранной зоне
+  const filteredSeatsData = useMemo(() => {
+    if (!selectedZone || viewMode === 'zones') {
+      return seatsData
+    }
+    return seatsData.filter(s => s.zone === selectedZone)
+  }, [seatsData, selectedZone, viewMode])
+
+  // 3) Быстрые мапы по (row,col)
   const seatIdByRC = useMemo(() => {
     const m = new Map()
-    for (const s of seatsData) m.set(`${s.row}-${s.seat}`, s.seatId)
+    for (const s of filteredSeatsData) m.set(`${s.row}-${s.seat}`, s.seatId)
     return m
-  }, [seatsData])
+  }, [filteredSeatsData])
 
   const seatPriceByRC = useMemo(() => {
     const m = new Map()
-    for (const s of seatsData) m.set(`${s.row}-${s.seat}`, Number(s.price || 0))
+    for (const s of filteredSeatsData) m.set(`${s.row}-${s.seat}`, Number(s.price || 0))
     return m
-  }, [seatsData])
+  }, [filteredSeatsData])
 
-  // 3) Собираем venue для пикера: rows/cols + безопасное zones с цветами
+  // 4) Собираем venue для пикера: rows/cols + безопасное zones с цветами
   const venueForPicker = useMemo(() => {
-    if (!seatsData.length) return null
+    if (!filteredSeatsData.length) return null
 
-    const maxRow  = Math.max(...seatsData.map(s => Number(s.row || 0)))
-    const maxSeat = Math.max(...seatsData.map(s => Number(s.seat || 0)))
+    const maxRow  = Math.max(...filteredSeatsData.map(s => Number(s.row || 0)))
+    const maxSeat = Math.max(...filteredSeatsData.map(s => Number(s.seat || 0)))
 
     // Строим справочник зон из zonesInfo или из данных мест
     const zones = {}
@@ -113,9 +129,9 @@ export default function SeatSelect() {
       })
     } else {
       // Fallback: строим из данных мест
-      const zoneSet = new Set(seatsData.map(s => s.zone).filter(Boolean))
+      const zoneSet = new Set(filteredSeatsData.map(s => s.zone).filter(Boolean))
       Array.from(zoneSet).forEach(z => {
-        const zoneSeats = seatsData.filter(s => s.zone === z)
+        const zoneSeats = filteredSeatsData.filter(s => s.zone === z)
         const prices = zoneSeats.map(s => Number(s.price || 0)).filter(p => p > 0)
         zones[z] = {
           code: z,
@@ -128,12 +144,29 @@ export default function SeatSelect() {
     }
 
     return { rows: maxRow, cols: maxSeat, zones }   // <= всегда есть zones (пусть и пустой)
-  }, [seatsData, zonesInfo])
+  }, [filteredSeatsData, zonesInfo])
 
-  // 4) Переключение места
+  // Обработчик выбора зоны
+  const handleZoneSelect = (zoneCode) => {
+    if (zoneCode) {
+      // Обновляем URL с параметром зоны
+      const basePath = `/shows/${eventId}`
+      const sessionPath = sessionId ? `/sessions/${sessionId}` : ''
+      navigate(`${basePath}${sessionPath}/seats?zone=${encodeURIComponent(zoneCode)}`)
+      setViewMode('seats')
+    } else {
+      // Показать все места
+      const basePath = `/shows/${eventId}`
+      const sessionPath = sessionId ? `/sessions/${sessionId}` : ''
+      navigate(`${basePath}${sessionPath}/seats`)
+      setViewMode('seats')
+    }
+  }
+
+  // 5) Переключение места
   function toggle(seat) {
-    // Пока seatsData не подгружены — ничего не делаем
-    if (!seatsData.length) return
+    // Пока filteredSeatsData не подгружены — ничего не делаем
+    if (!filteredSeatsData.length) return
 
     const key = `${seat.row}-${seat.col}`
     const seatId = seatIdByRC.get(key)
@@ -151,9 +184,9 @@ export default function SeatSelect() {
     )
   }
 
-  // 5) Добавление в корзину
+  // 6) Добавление в корзину
   const disabledAdd =
-    !seatsData.length || !selected.length || selected.some(s => !s.seatId)
+    !filteredSeatsData.length || !selected.length || selected.some(s => !s.seatId)
 
   function addSelectedToCart() {
     if (disabledAdd) return
@@ -179,45 +212,64 @@ export default function SeatSelect() {
     return <section className="p-4"><div className="text-red-400">{error || 'Нет данных по местам'}</div></section>
   }
 
-  const safeVenue = venueForPicker || { rows: 0, cols: 0, zones: {} }
+  // Если режим просмотра зон или зона не выбрана - показываем схему зон
+  if (viewMode === 'zones' || !selectedZone) {
+    return (
+      <section className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Выбор зоны</h1>
+          <p className="text-neutral-400">Выберите зону для просмотра доступных мест</p>
+        </div>
 
-  // Находим информацию о текущей зоне
-  const currentZone = selectedZone ? zonesInfo.find(z => z.code === selectedZone) : null
+        <VenueZonesMap
+          seats={seatsData}
+          zones={zonesInfo}
+          onZoneSelect={handleZoneSelect}
+        />
+      </section>
+    )
+  }
+
+  // Режим просмотра мест
+  const safeVenue = venueForPicker || { rows: 0, cols: 0, zones: {} }
+  const currentZone = zonesInfo.find(z => z.code === selectedZone)
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {currentZone ? `Выбор мест - ${currentZone.name}` : 'Выбор мест'}
-          </h1>
-          {currentZone && (
-            <p className="text-sm text-neutral-400 mt-1">
-              {currentZone.minPrice === currentZone.maxPrice 
-                ? formatCurrency(currentZone.minPrice)
-                : `${formatCurrency(currentZone.minPrice)} - ${formatCurrency(currentZone.maxPrice)}`
-              }
-            </p>
-          )}
-        </div>
-        {selectedZone && (
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
           <button
             onClick={() => {
               const basePath = `/shows/${eventId}`
               const sessionPath = sessionId ? `/sessions/${sessionId}` : ''
-              navigate(`${basePath}${sessionPath}/zones`)
+              navigate(`${basePath}${sessionPath}/seats`)
+              setViewMode('zones')
             }}
-            className="text-sm text-brand-400 hover:text-brand-300"
+            className="p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 hover:text-white transition"
+            title="Вернуться к выбору зоны"
           >
-            ← Выбрать другую зону
+            <FaArrowLeft />
           </button>
-        )}
+          <div>
+            <h1 className="text-2xl font-bold">
+              {currentZone ? `${currentZone.name} - Выбор мест` : 'Выбор мест'}
+            </h1>
+            {currentZone && (
+              <p className="text-sm text-neutral-400 mt-1">
+                {currentZone.minPrice === currentZone.maxPrice 
+                  ? formatCurrency(currentZone.minPrice)
+                  : `${formatCurrency(currentZone.minPrice)} - ${formatCurrency(currentZone.maxPrice)}`
+                }
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="card p-6 bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 border-neutral-800">
         <SeatPicker
           venue={safeVenue}
-          seats={seatsData}
+          seats={filteredSeatsData}
           selected={selected}
           onToggle={toggle}
         />
