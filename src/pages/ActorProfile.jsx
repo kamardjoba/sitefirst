@@ -1,12 +1,23 @@
 import { useParams, Link } from 'react-router-dom'
 import { useActorsStore } from '../store/actors'
 import { useShowsStore } from '../store/shows'
+import { useMemo } from 'react'
 
 export default function ActorProfile(){
   const { id } = useParams()
-  const actor = useActorsStore(s=>(s.list || []).find(a=>String(a.id)===String(id)))
-  // Берём все события, где artistId совпадает
-  const shows = useShowsStore(s=> (s.list || []).filter(sh=> String(sh.artistId||sh.artist_id) === String(id)))
+  const actorId = String(id)
+  const actor = useActorsStore(s=>(s.list || []).find(a=>String(a.id)===actorId))
+  const allShows = useShowsStore(s => s.list || [])
+  
+  // Берём все события, где artistId совпадает (проверяем оба варианта названия поля и приводим к строке для сравнения)
+  const shows = useMemo(() => {
+    return allShows.filter(sh=> {
+      const shArtistId = sh.artistId ?? sh.artist_id
+      if (shArtistId == null) return false
+      // Сравниваем как числа и как строки для надежности
+      return String(shArtistId) === actorId || Number(shArtistId) === Number(actorId)
+    })
+  }, [allShows, actorId])
 
   if(!actor) return <div className="p-4">Актёр не найден</div>
 
@@ -27,6 +38,7 @@ export default function ActorProfile(){
   }, {})
 
   const cities = Object.keys(byCity)
+  const totalEvents = shows.length
 
   return (
     <section className="space-y-6">
@@ -39,7 +51,12 @@ export default function ActorProfile(){
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Ближайшие концерты</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Ближайшие концерты</h2>
+          {totalEvents > 0 && (
+            <span className="text-sm text-neutral-400">Найдено событий: {totalEvents}</span>
+          )}
+        </div>
 
         {!cities.length && <div className="text-neutral-400">Пока нет запланированных концертов.</div>}
 
