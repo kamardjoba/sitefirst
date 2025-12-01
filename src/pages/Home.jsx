@@ -28,7 +28,7 @@ export default function Home(){
     Array.from(new Set((shows || []).map(s => s.venueCity).filter(Boolean))).sort()
   ), [shows])
 
-  const actorsById = useMemo(() => Object.fromEntries(actors.map(a => [a.id, a])), [actors])
+  const actorsById = useMemo(() => Object.fromEntries((actors || []).map(a => [a.id, a])), [actors])
 
   // Популярные постановки (топ 6 по популярности)
   const popularShows = useMemo(() => {

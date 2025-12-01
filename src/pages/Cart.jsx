@@ -9,7 +9,7 @@ export default function Cart(){
   const remove = useCartStore(s=>s.remove)
   const applyPromo = useCartStore(s=>s.applyPromo)
   const totals = useCartStore(s=>s.totals)()
-  const shows = useShowsStore(s=>s.list)
+  const shows = useShowsStore(s=>s.list || [])
   const showsById = Object.fromEntries(shows.map(s=>[s.id,s]))
   const go = useNavigate()
   return (

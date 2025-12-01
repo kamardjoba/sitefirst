@@ -4,9 +4,9 @@ import { useShowsStore } from '../store/shows'
 
 export default function ActorProfile(){
   const { id } = useParams()
-  const actor = useActorsStore(s=>s.list.find(a=>String(a.id)===String(id)))
+  const actor = useActorsStore(s=>(s.list || []).find(a=>String(a.id)===String(id)))
   // Берём все события, где artistId совпадает
-  const shows = useShowsStore(s=> s.list.filter(sh=> String(sh.artistId||sh.artist_id) === String(id)))
+  const shows = useShowsStore(s=> (s.list || []).filter(sh=> String(sh.artistId||sh.artist_id) === String(id)))
 
   if(!actor) return <div className="p-4">Актёр не найден</div>
 
