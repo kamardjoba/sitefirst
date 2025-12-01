@@ -14,7 +14,8 @@ export default function SeatSelect() {
 
   const addToCart = useCartStore(s => s.add)
 
-  const [seatsData, setSeatsData] = useState([])   // [{ seatId,row,seat,zone,status,price }]
+  const [seatsData, setSeatsData] = useState([])   // [{ seatId,row,seat,zone,status,price,zoneName,zoneColor }]
+  const [zonesInfo, setZonesInfo] = useState([])  // [{ code, name, color, minPrice, maxPrice }]
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [selected, setSelected] = useState([])      // [{ row,col,price,seatId }]
@@ -25,6 +26,7 @@ export default function SeatSelect() {
     ;(async () => {
       if (!seatEventId) {
         setSeatsData([])
+        setZonesInfo([])
         setError('Некорректный идентификатор события')
         setLoading(false)
         return
@@ -35,7 +37,23 @@ export default function SeatSelect() {
         const res = await api.get(`/api/events/${seatEventId}/seats`)
         if (!res.ok) throw new Error(`fetch_failed_${res.status}`)
         const data = await res.json()
-        if (alive) setSeatsData(Array.isArray(data) ? data : [])
+        // Поддержка старого формата (массив) и нового (объект с seats и zones)
+        if (Array.isArray(data)) {
+          if (alive) {
+            setSeatsData(data)
+            setZonesInfo([])
+          }
+        } else if (data.seats && Array.isArray(data.seats)) {
+          if (alive) {
+            setSeatsData(data.seats)
+            setZonesInfo(data.zones || [])
+          }
+        } else {
+          if (alive) {
+            setSeatsData([])
+            setZonesInfo([])
+          }
+        }
       } catch (e) {
         if (alive) setError('Не удалось загрузить схему зала')
       } finally {
@@ -60,21 +78,43 @@ export default function SeatSelect() {
     return m
   }, [seatsData])
 
-  // 3) Собираем venue для пикера: rows/cols + безопасное zones
+  // 3) Собираем venue для пикера: rows/cols + безопасное zones с цветами
   const venueForPicker = useMemo(() => {
     if (!seatsData.length) return null
 
     const maxRow  = Math.max(...seatsData.map(s => Number(s.row || 0)))
     const maxSeat = Math.max(...seatsData.map(s => Number(s.seat || 0)))
 
-    // Построим мини-справочник зон (если zone не приходит — будет пустой объект)
-    const zoneSet = new Set(seatsData.map(s => s.zone).filter(Boolean))
-    const zones = Object.fromEntries(
-      Array.from(zoneSet).map(z => [z, { code: z, name: z }])
-    )
+    // Строим справочник зон из zonesInfo или из данных мест
+    const zones = {}
+    if (zonesInfo.length > 0) {
+      zonesInfo.forEach(z => {
+        zones[z.code] = {
+          code: z.code,
+          name: z.name || z.code,
+          color: z.color || '#999999',
+          minPrice: z.minPrice,
+          maxPrice: z.maxPrice
+        }
+      })
+    } else {
+      // Fallback: строим из данных мест
+      const zoneSet = new Set(seatsData.map(s => s.zone).filter(Boolean))
+      Array.from(zoneSet).forEach(z => {
+        const zoneSeats = seatsData.filter(s => s.zone === z)
+        const prices = zoneSeats.map(s => Number(s.price || 0)).filter(p => p > 0)
+        zones[z] = {
+          code: z,
+          name: z,
+          color: zoneSeats[0]?.zoneColor || '#999999',
+          minPrice: prices.length > 0 ? Math.min(...prices) : 0,
+          maxPrice: prices.length > 0 ? Math.max(...prices) : 0
+        }
+      })
+    }
 
     return { rows: maxRow, cols: maxSeat, zones }   // <= всегда есть zones (пусть и пустой)
-  }, [seatsData])
+  }, [seatsData, zonesInfo])
 
   // 4) Переключение места
   function toggle(seat) {
@@ -131,7 +171,7 @@ export default function SeatSelect() {
     <section className="space-y-4">
       <h1 className="text-2xl font-bold">Выбор мест</h1>
 
-      <div className="card p-4">
+      <div className="card p-6">
         <SeatPicker
           venue={safeVenue}         // всегда есть zones (хотя бы пустой объект)
           seats={seatsData}
