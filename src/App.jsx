@@ -17,6 +17,7 @@ const ActorProfile = React.lazy(() => import('./pages/ActorProfile'))
 const Shows = React.lazy(() => import('./pages/Shows'))
 const ShowDetails = React.lazy(() => import('./pages/ShowDetails'))
 const SeatSelect = React.lazy(() => import('./pages/SeatSelect'))
+const ZoneSelect = React.lazy(() => import('./pages/ZoneSelect'))
 const Cart = React.lazy(() => import('./pages/Cart'))
 const AdminVenues = React.lazy(() => import('./pages/AdminVenues'))
 const AdminEvents = React.lazy(() => import('./pages/AdminEvents'))
@@ -45,7 +46,10 @@ export default function App() {
               <Route path="/admin/events" element={<AdminEvents/>} />
               <Route path="/admin/artist-wizard" element={<AdminArtistWizard />} />
               <Route path="/shows/:id" element={<ShowDetails />} />
+              <Route path="/shows/:id/sessions/:sessionId/zones" element={<ZoneSelect />} />
               <Route path="/shows/:id/sessions/:sessionId/seats" element={<SeatSelect />} />
+              <Route path="/shows/:id/zones" element={<ZoneSelect />} />
+              <Route path="/shows/:id/seats" element={<SeatSelect />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/success" element={<Success />} />

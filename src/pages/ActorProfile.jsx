@@ -73,7 +73,7 @@ export default function ActorProfile(){
                     </div>
                   </div>
                   {ev.sessionId ? (
-                    <Link className="btn" to={`/shows/${ev.id}/sessions/${ev.sessionId}/seats`}>
+                    <Link className="btn" to={`/shows/${ev.id}/sessions/${ev.sessionId}/zones`}>
                       Выбрать места
                     </Link>
                   ) : (

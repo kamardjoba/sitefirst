@@ -13,7 +13,7 @@ export default function SessionList({ show }){
               От {formatCurrency(Math.round(s.basePrice * s.dynamicFactor))}
             </div>
           </div>
-          <Link className="btn ..." to={`/shows/${show.id}/sessions/${s.id}/seats`}>Выбрать места</Link>
+          <Link className="btn" to={`/shows/${show.id}/sessions/${s.id}/zones`}>Выбрать места</Link>
         </div>
       ))}
     </div>

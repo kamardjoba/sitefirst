@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../utils/api'
 import { useCartStore } from '../store/cart'
 import SeatPicker from '../components/SeatPicker'
@@ -7,10 +7,14 @@ import { formatCurrency } from '../utils/currency'
 
 export default function SeatSelect() {
   const { id, sessionId: sessionIdParam } = useParams()
+  const [searchParams] = useSearchParams()
   const eventId = Number(id)
   const sessionId = sessionIdParam ? Number(sessionIdParam) : null
   const seatEventId = sessionId || eventId
   const navigate = useNavigate()
+  
+  // Получаем параметр зоны из URL
+  const selectedZone = searchParams.get('zone')
 
   const addToCart = useCartStore(s => s.add)
 
@@ -40,12 +44,22 @@ export default function SeatSelect() {
         // Поддержка старого формата (массив) и нового (объект с seats и zones)
         if (Array.isArray(data)) {
           if (alive) {
-            setSeatsData(data)
+            // Фильтруем по зоне, если указана
+            let filteredSeats = data
+            if (selectedZone) {
+              filteredSeats = data.filter(s => s.zone === selectedZone)
+            }
+            setSeatsData(filteredSeats)
             setZonesInfo([])
           }
         } else if (data.seats && Array.isArray(data.seats)) {
           if (alive) {
-            setSeatsData(data.seats)
+            // Фильтруем по зоне, если указана
+            let filteredSeats = data.seats
+            if (selectedZone) {
+              filteredSeats = data.seats.filter(s => s.zone === selectedZone)
+            }
+            setSeatsData(filteredSeats)
             setZonesInfo(data.zones || [])
           }
         } else {
@@ -63,7 +77,7 @@ export default function SeatSelect() {
     return () => {
       alive = false
     }
-  }, [seatEventId])
+  }, [seatEventId, selectedZone])
 
   // 2) Быстрые мапы по (row,col)
   const seatIdByRC = useMemo(() => {
@@ -167,9 +181,38 @@ export default function SeatSelect() {
 
   const safeVenue = venueForPicker || { rows: 0, cols: 0, zones: {} }
 
+  // Находим информацию о текущей зоне
+  const currentZone = selectedZone ? zonesInfo.find(z => z.code === selectedZone) : null
+
   return (
     <section className="space-y-4">
-      <h1 className="text-2xl font-bold">Выбор мест</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">
+            {currentZone ? `Выбор мест - ${currentZone.name}` : 'Выбор мест'}
+          </h1>
+          {currentZone && (
+            <p className="text-sm text-neutral-400 mt-1">
+              {currentZone.minPrice === currentZone.maxPrice 
+                ? formatCurrency(currentZone.minPrice)
+                : `${formatCurrency(currentZone.minPrice)} - ${formatCurrency(currentZone.maxPrice)}`
+              }
+            </p>
+          )}
+        </div>
+        {selectedZone && (
+          <button
+            onClick={() => {
+              const basePath = `/shows/${eventId}`
+              const sessionPath = sessionId ? `/sessions/${sessionId}` : ''
+              navigate(`${basePath}${sessionPath}/zones`)
+            }}
+            className="text-sm text-brand-400 hover:text-brand-300"
+          >
+            ← Выбрать другую зону
+          </button>
+        )}
+      </div>
 
       <div className="card p-6">
         <SeatPicker

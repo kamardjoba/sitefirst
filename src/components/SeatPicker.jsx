@@ -88,7 +88,7 @@ export default function SeatPicker({ venue, seats, selected, onToggle }) {
           key={key}
           type="button"
           className={[
-            "w-8 h-8 m-0.5 rounded text-xs font-medium flex items-center justify-center border-2 transition-all",
+            "w-10 h-10 m-0.5 rounded-md text-sm font-medium flex items-center justify-center border-2 transition-all",
             "hover:scale-110 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-900",
             isBusy ? "cursor-not-allowed" : "cursor-pointer"
           ].join(' ')}
