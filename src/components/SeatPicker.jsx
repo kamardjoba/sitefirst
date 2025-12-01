@@ -180,7 +180,7 @@ export default function SeatPicker({ venue, seats, selected, onToggle }) {
       const isFiltered = filteredSeats.length === 0 || filteredSeats.some(s => s.row === r && s.seat === c)
 
       if (!isFiltered) {
-        rowCells.push(<div key={key} className="w-12 h-12 m-0.5" />)
+        rowCells.push(<div key={key} className="w-10 h-10 m-1" />)
         continue
       }
 
@@ -212,33 +212,47 @@ export default function SeatPicker({ venue, seats, selected, onToggle }) {
           key={key}
           type="button"
           className={[
-            "w-12 h-12 m-0.5 rounded-lg text-xs font-semibold flex items-center justify-center border-2 transition-all relative",
-            "hover:scale-125 hover:shadow-2xl hover:z-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-900",
-            isBusy ? "cursor-not-allowed" : "cursor-pointer",
-            isRestricted ? "opacity-60" : ""
+            "w-10 h-10 m-1 rounded-full text-xs font-semibold flex items-center justify-center border-2 transition-all relative",
+            "hover:scale-150 hover:shadow-2xl hover:z-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-900",
+            isBusy ? "cursor-not-allowed opacity-40" : "cursor-pointer",
+            isRestricted ? "opacity-70" : "",
+            isSel ? "ring-4 ring-pink-500/50" : ""
           ].join(' ')}
           style={{
-            backgroundColor: isBusy ? bgColor : (isSel ? bgColor : `${bgColor}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`),
-            borderColor: borderColor,
+            backgroundColor: isBusy ? '#1f2937' : (isSel ? '#ec4899' : `${bgColor}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`),
+            borderColor: isBusy ? '#374151' : (isSel ? '#ec4899' : borderColor),
             color: textColor,
-            boxShadow: isSel ? `0 0 20px ${borderColor}80` : 'none'
+            boxShadow: isSel ? `0 0 25px ${borderColor}90, 0 0 15px ${borderColor}60` : (isBusy ? 'none' : `0 2px 8px ${borderColor}40`)
           }}
           disabled={isBusy}
           onClick={() => !isBusy && onToggle({ row: r, col: c, price, zone: zoneInfo.code })}
           onMouseEnter={(e) => {
-            setHoveredSeat({ row: r, col: c, price, zone: zoneInfo.name, isBusy, isRestricted })
-            setHoverPosition({ x: e.clientX, y: e.clientY })
+            if (!isBusy) {
+              setHoveredSeat({ 
+                row: r, 
+                col: c, 
+                price, 
+                zone: zoneInfo.name, 
+                sector: zoneInfo.code,
+                zoneColor: zoneInfo.color,
+                isBusy, 
+                isRestricted 
+              })
+              setHoverPosition({ x: e.clientX, y: e.clientY })
+            }
           }}
           onMouseMove={(e) => {
-            setHoverPosition({ x: e.clientX, y: e.clientY })
+            if (hoveredSeat) {
+              setHoverPosition({ x: e.clientX, y: e.clientY })
+            }
           }}
           onMouseLeave={() => setHoveredSeat(null)}
-          aria-label={`Ряд ${r}, место ${c}${zoneInfo.name ? `, ${zoneInfo.name}` : ''}${price ? `, ${formatCurrency(price)}` : ''}`}
+          aria-label={`Сектор ${zoneInfo.code}, Ряд ${r}, Место ${c}${price ? `, ${formatCurrency(price)}` : ''}`}
         >
           {isRestricted && (
-            <span className="absolute top-0 right-0 text-[8px] text-yellow-400">⚠</span>
+            <span className="absolute -top-1 -right-1 text-[10px] text-yellow-400 font-bold">⚠</span>
           )}
-          {c}
+          <span className="text-[10px]">{c}</span>
         </button>
       )
     }
@@ -360,24 +374,39 @@ export default function SeatPicker({ venue, seats, selected, onToggle }) {
         </div>
 
         {/* Hover подсказка */}
-        {hoveredSeat && (
+        {hoveredSeat && !hoveredSeat.isBusy && (
           <div
-            className="fixed z-50 bg-neutral-900 border-2 border-brand-500 rounded-lg p-4 shadow-2xl pointer-events-none"
+            className="fixed z-50 bg-gradient-to-br from-neutral-900 to-neutral-950 border-2 border-brand-500 rounded-xl p-4 shadow-2xl pointer-events-none min-w-[200px]"
             style={{
               left: `${hoverPosition.x}px`,
               top: `${hoverPosition.y - 10}px`,
-              transform: 'translate(-50%, -100%)'
+              transform: 'translate(-50%, -100%)',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(236,72,153,0.3)'
             }}
           >
-            <div className="space-y-1 text-sm">
-              <div className="font-bold text-white">Ряд {hoveredSeat.row}, Место {hoveredSeat.col}</div>
-              <div className="text-neutral-300">{hoveredSeat.zone}</div>
-              <div className="text-brand-400 font-semibold">{formatCurrency(hoveredSeat.price)}</div>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full border-2" style={{ borderColor: hoveredSeat.zoneColor || '#999999' }} />
+                <div className="font-bold text-white">Сектор: {hoveredSeat.sector || hoveredSeat.zone}</div>
+              </div>
+              <div className="border-t border-neutral-700 pt-2">
+                <div className="text-neutral-300">
+                  <span className="font-semibold">Ряд:</span> {hoveredSeat.row}
+                </div>
+                <div className="text-neutral-300">
+                  <span className="font-semibold">Место:</span> {hoveredSeat.col}
+                </div>
+              </div>
+              <div className="border-t border-neutral-700 pt-2">
+                <div className="text-brand-400 font-bold text-lg">
+                  {formatCurrency(hoveredSeat.price)}
+                </div>
+              </div>
               {hoveredSeat.isRestricted && (
-                <div className="text-yellow-400 text-xs">⚠ Ограниченный обзор</div>
-              )}
-              {hoveredSeat.isBusy && (
-                <div className="text-red-400 text-xs">Занято</div>
+                <div className="text-yellow-400 text-xs flex items-center gap-1">
+                  <span>⚠</span>
+                  <span>Ограниченный обзор</span>
+                </div>
               )}
             </div>
           </div>
