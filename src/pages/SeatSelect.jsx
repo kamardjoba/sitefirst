@@ -27,75 +27,60 @@ export default function SeatSelect() {
   const [selected, setSelected] = useState([])      // [{ row,col,price,seatId }]
   const [viewMode, setViewMode] = useState('zones') // 'zones' или 'seats'
 
-  // Функция загрузки мест
-  const loadSeats = useCallback(async () => {
-    if (!seatEventId) {
-      setSeatsData([])
-      setZonesInfo([])
-      setError('Некорректный идентификатор события')
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    setError('')
-    try {
-      const res = await api.get(`/api/events/${seatEventId}/seats`)
-      if (!res.ok) throw new Error(`fetch_failed_${res.status}`)
-      const data = await res.json()
-      // Поддержка старого формата (массив) и нового (объект с seats и zones)
-      if (Array.isArray(data)) {
-        // Фильтруем по зоне, если указана
-        let filteredSeats = data
-        if (selectedZone) {
-          filteredSeats = data.filter(s => s.zone === selectedZone)
-        }
-        setSeatsData(filteredSeats)
-        setZonesInfo([])
-      } else if (data.seats && Array.isArray(data.seats)) {
-        // Всегда загружаем все места для схемы зон
-        setSeatsData(data.seats)
-        setZonesInfo(data.zones || [])
-      } else {
-        setSeatsData([])
-        setZonesInfo([])
-      }
-    } catch (e) {
-      setError('Не удалось загрузить схему зала')
-    } finally {
-      setLoading(false)
-    }
-  }, [seatEventId, selectedZone])
-
   // 1) Загружаем места события
   useEffect(() => {
     let alive = true
-    loadSeats().then(() => {
+    
+    const loadSeats = async () => {
+      if (!seatEventId) {
+        if (!alive) return
+        setSeatsData([])
+        setZonesInfo([])
+        setError('Некорректный идентификатор события')
+        setLoading(false)
+        return
+      }
       if (!alive) return
-    })
+      setLoading(true)
+      setError('')
+      try {
+        const res = await api.get(`/api/events/${seatEventId}/seats`)
+        if (!res.ok) throw new Error(`fetch_failed_${res.status}`)
+        const data = await res.json()
+        if (!alive) return
+        // Поддержка старого формата (массив) и нового (объект с seats и zones)
+        if (Array.isArray(data)) {
+          // Всегда загружаем все места - фильтрация будет на уровне filteredSeatsData
+          setSeatsData(data)
+          setZonesInfo([])
+        } else if (data.seats && Array.isArray(data.seats)) {
+          // Всегда загружаем все места для схемы зон
+          setSeatsData(data.seats)
+          setZonesInfo(data.zones || [])
+        } else {
+          setSeatsData([])
+          setZonesInfo([])
+        }
+      } catch (e) {
+        if (!alive) return
+        setError('Не удалось загрузить схему зала')
+      } finally {
+        if (alive) {
+          setLoading(false)
+        }
+      }
+    }
+    
+    loadSeats()
+    
     return () => {
       alive = false
     }
-  }, [loadSeats])
+  }, [seatEventId])
 
   // Обновляем данные при возврате на страницу (например, после покупки)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && seatEventId) {
-        loadSeats()
-      }
-    }
-    const handleFocus = () => {
-      if (seatEventId) {
-        loadSeats()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
-    }
-  }, [seatEventId, loadSeats])
+  // Используем простой подход - данные обновятся при следующем изменении seatEventId
+  // или при ручном обновлении страницы
 
   // Определяем режим просмотра на основе URL параметра
   useEffect(() => {
