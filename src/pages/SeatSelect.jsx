@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../utils/api'
 import { useCartStore } from '../store/cart'
@@ -27,56 +27,75 @@ export default function SeatSelect() {
   const [selected, setSelected] = useState([])      // [{ row,col,price,seatId }]
   const [viewMode, setViewMode] = useState('zones') // 'zones' или 'seats'
 
+  // Функция загрузки мест
+  const loadSeats = useCallback(async () => {
+    if (!seatEventId) {
+      setSeatsData([])
+      setZonesInfo([])
+      setError('Некорректный идентификатор события')
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await api.get(`/api/events/${seatEventId}/seats`)
+      if (!res.ok) throw new Error(`fetch_failed_${res.status}`)
+      const data = await res.json()
+      // Поддержка старого формата (массив) и нового (объект с seats и zones)
+      if (Array.isArray(data)) {
+        // Фильтруем по зоне, если указана
+        let filteredSeats = data
+        if (selectedZone) {
+          filteredSeats = data.filter(s => s.zone === selectedZone)
+        }
+        setSeatsData(filteredSeats)
+        setZonesInfo([])
+      } else if (data.seats && Array.isArray(data.seats)) {
+        // Всегда загружаем все места для схемы зон
+        setSeatsData(data.seats)
+        setZonesInfo(data.zones || [])
+      } else {
+        setSeatsData([])
+        setZonesInfo([])
+      }
+    } catch (e) {
+      setError('Не удалось загрузить схему зала')
+    } finally {
+      setLoading(false)
+    }
+  }, [seatEventId, selectedZone])
+
   // 1) Загружаем места события
   useEffect(() => {
     let alive = true
-    ;(async () => {
-      if (!seatEventId) {
-        setSeatsData([])
-        setZonesInfo([])
-        setError('Некорректный идентификатор события')
-        setLoading(false)
-        return
-      }
-      setLoading(true)
-      setError('')
-      try {
-        const res = await api.get(`/api/events/${seatEventId}/seats`)
-        if (!res.ok) throw new Error(`fetch_failed_${res.status}`)
-        const data = await res.json()
-        // Поддержка старого формата (массив) и нового (объект с seats и zones)
-        if (Array.isArray(data)) {
-          if (alive) {
-            // Фильтруем по зоне, если указана
-            let filteredSeats = data
-            if (selectedZone) {
-              filteredSeats = data.filter(s => s.zone === selectedZone)
-            }
-            setSeatsData(filteredSeats)
-            setZonesInfo([])
-          }
-        } else if (data.seats && Array.isArray(data.seats)) {
-          if (alive) {
-            // Всегда загружаем все места для схемы зон
-            setSeatsData(data.seats)
-            setZonesInfo(data.zones || [])
-          }
-        } else {
-          if (alive) {
-            setSeatsData([])
-            setZonesInfo([])
-          }
-        }
-      } catch (e) {
-        if (alive) setError('Не удалось загрузить схему зала')
-      } finally {
-        if (alive) setLoading(false)
-      }
-    })()
+    loadSeats().then(() => {
+      if (!alive) return
+    })
     return () => {
       alive = false
     }
-  }, [seatEventId])
+  }, [loadSeats])
+
+  // Обновляем данные при возврате на страницу (например, после покупки)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && seatEventId) {
+        loadSeats()
+      }
+    }
+    const handleFocus = () => {
+      if (seatEventId) {
+        loadSeats()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [seatEventId, loadSeats])
 
   // Определяем режим просмотра на основе URL параметра
   useEffect(() => {
