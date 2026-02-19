@@ -18,6 +18,16 @@ const normEventToShow = (e)=> {
   const dateISO = d.toISOString().slice(0,10)
   const timeISO = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 
+  // Парсим photos если это строка JSON
+  let photos = []
+  if (e.photos) {
+    try {
+      photos = typeof e.photos === 'string' ? JSON.parse(e.photos) : e.photos
+    } catch {
+      photos = Array.isArray(e.photos) ? e.photos : []
+    }
+  }
+
   return {
     id: e.id,
     // 👇 добавили эти поля
@@ -25,7 +35,7 @@ const normEventToShow = (e)=> {
     artistName: e.artistName || e.artist_name || '',
 
     title: e.title || `${e.artistName || e.artist_name || 'Концерт'}`,
-    description: '',
+    description: e.description || '',
     venueId: e.venueId || e.venue_id,
     // убедись что это поле уже добавлено ранее:
     venueCity: e.city || e.venueCity || e.venue_city,
@@ -33,7 +43,9 @@ const normEventToShow = (e)=> {
     rating: 4.8,
     popularity: 100,
     genres: (e.genre ? [e.genre] : []),
-    posterUrl: e.artistPhoto || e.artist_photo || '',
+    posterUrl: e.mainPhotoUrl || e.main_photo_url || e.artistPhoto || e.artist_photo || '',
+    mainPhotoUrl: e.mainPhotoUrl || e.main_photo_url || null,
+    photos: photos,
     sessions: [
       {
         id: e.id,        // у нас sessionId === eventId

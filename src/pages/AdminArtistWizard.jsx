@@ -15,7 +15,9 @@ function emptyRow(){
     cols: 20,
     // общее:
     starts_at: "",          // "2025-12-01T19:00"
-    title: ""
+    title: "",
+    description: "",
+    photos: []              // массив файлов
   }
 }
 
@@ -83,16 +85,23 @@ export default function AdminArtistWizard(){
   }
 
   async function createEvent(artist_id, row, venue_id){
-    const payload = {
-      artist_id,
-      venue_id,
-      starts_at: row.starts_at, // "YYYY-MM-DDTHH:mm"
-      title: row.title || null
+    const formData = new FormData()
+    formData.append("artist_id", artist_id)
+    formData.append("venue_id", venue_id)
+    formData.append("starts_at", row.starts_at) // "YYYY-MM-DDTHH:mm"
+    if(row.title) formData.append("title", row.title)
+    if(row.description) formData.append("description", row.description)
+    
+    // Добавляем фото если есть
+    if(Array.isArray(row.photos) && row.photos.length > 0) {
+      row.photos.forEach((photo) => {
+        formData.append("photos", photo)
+      })
     }
+    
     const res = await fetch(`${API}/api/admin/events`, {
       method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify(payload)
+      body: formData
     })
     if(!res.ok) throw new Error("event_create_failed")
     return await res.json()
@@ -114,6 +123,8 @@ export default function AdminArtistWizard(){
       // сброс формы
       setArtist({ name:"", genre:"", bio:"", photo:null })
       setRows([ emptyRow() ])
+      // Сброс всех input file
+      document.querySelectorAll('input[type="file"]').forEach(input => input.value = '')
     }catch(err){
       console.error(err)
       alert("Ошибка при создании. Проверь данные и логи.")
@@ -209,6 +220,27 @@ export default function AdminArtistWizard(){
                 <label className="block text-sm mb-1">Название события (опц.)</label>
                 <input className="input w-full" placeholder="Напр. Warsaw"
                        value={r.title} onChange={e=>patchRow(idx,{ title: e.target.value })}/>
+              </div>
+
+              <div className="md:col-span-12">
+                <label className="block text-sm mb-1">Описание события (опц.)</label>
+                <textarea className="input w-full min-h-[80px]" placeholder="Описание события"
+                          value={r.description} onChange={e=>patchRow(idx,{ description: e.target.value })}/>
+              </div>
+
+              <div className="md:col-span-12">
+                <label className="block text-sm mb-1">Фото события (опц.)</label>
+                <p className="text-xs text-neutral-400 mb-2">Первое фото будет главным</p>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  multiple 
+                  onChange={e=>patchRow(idx,{ photos: Array.from(e.target.files || []) })}
+                  className="input w-full"
+                />
+                {r.photos && r.photos.length > 0 && (
+                  <p className="text-sm text-neutral-400 mt-1">Выбрано фото: {r.photos.length}</p>
+                )}
               </div>
 
               <div className="md:col-span-1 flex gap-2 md:justify-end">
