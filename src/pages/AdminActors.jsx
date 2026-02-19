@@ -4,7 +4,7 @@ const API = import.meta.env.VITE_API_BASE;
 
 export default function AdminActors() {
   const [actors, setActors] = useState([]);
-  const [form, setForm] = useState({ name: "", bio: "", photo: null });
+  const [form, setForm] = useState({ name: "", bio: "", genre: "", photo: null, cast: [] });
 
   useEffect(() => {
     fetch(`${API}/api/artists`).then(r => r.json()).then(setActors);
@@ -15,7 +15,11 @@ export default function AdminActors() {
     const fd = new FormData();
     fd.append("name", form.name);
     fd.append("bio", form.bio);
+    if (form.genre) fd.append("genre", form.genre);
     if (form.photo) fd.append("photo", form.photo);
+    if (form.cast && form.cast.length > 0) {
+      fd.append("cast", JSON.stringify(form.cast));
+    }
 
     const res = await fetch(`${API}/api/admin/artists`, {
       method: "POST",
@@ -23,7 +27,10 @@ export default function AdminActors() {
     });
     const data = await res.json();
     setActors((a) => [...a, data]);
-    setForm({ name: "", bio: "", photo: null });
+    setForm({ name: "", bio: "", genre: "", photo: null, cast: [] });
+    // Сброс input file
+    const fileInput = document.querySelector('input[type="file"]');
+    if(fileInput) fileInput.value = '';
   };
 
   const del = async (id) => {
@@ -57,23 +64,68 @@ export default function AdminActors() {
       <form onSubmit={addActor} className="space-y-2 mb-5">
         <input
           type="text"
-          placeholder="Имя актёра"
+          placeholder="Имя артиста *"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
-          className="border p-2 w-full"
+          className="input w-full"
+          required
+        />
+        <input
+          type="text"
+          placeholder="Жанр (опционально)"
+          value={form.genre}
+          onChange={(e) => setForm({ ...form, genre: e.target.value })}
+          className="input w-full"
         />
         <textarea
-          placeholder="Биография"
+          placeholder="Биография (опционально)"
           value={form.bio}
           onChange={(e) => setForm({ ...form, bio: e.target.value })}
-          className="border p-2 w-full"
+          className="input w-full min-h-[100px]"
         />
+        <div>
+          <label className="block text-sm mb-2">Состав (опционально) - выберите других артистов</label>
+          <select
+            multiple
+            className="input w-full min-h-[100px]"
+            value={form.cast.map(String)}
+            onChange={(e) => {
+              const selected = Array.from(e.target.selectedOptions, option => Number(option.value));
+              setForm({ ...form, cast: selected });
+            }}
+          >
+            {actors.map(a => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
+          <p className="text-xs text-neutral-400 mt-1">Удерживайте Ctrl/Cmd для выбора нескольких</p>
+          {form.cast.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {form.cast.map(id => {
+                const actor = actors.find(a => a.id === id);
+                return actor ? (
+                  <span key={id} className="tag">
+                    {actor.name}
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, cast: form.cast.filter(c => c !== id) })}
+                      className="ml-2 text-red-400 hover:text-red-300"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ) : null;
+              })}
+            </div>
+          )}
+        </div>
         <input
           type="file"
           accept="image/*"
           onChange={(e) => setForm({ ...form, photo: e.target.files[0] })}
+          className="input w-full"
         />
-        <button className="bg-blue-600 text-white px-4 py-2 rounded">Добавить</button>
+        <button className="btn">Добавить</button>
       </form>
 
       <ul className="space-y-3">

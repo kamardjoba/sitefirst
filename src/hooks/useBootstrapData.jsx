@@ -28,6 +28,17 @@ const normEventToShow = (e)=> {
     }
   }
 
+  // Парсим cast артиста если это строка JSON
+  let cast = []
+  if (e.artistCast) {
+    try {
+      cast = typeof e.artistCast === 'string' ? JSON.parse(e.artistCast) : e.artistCast
+      if (!Array.isArray(cast)) cast = []
+    } catch {
+      cast = Array.isArray(e.artistCast) ? e.artistCast : []
+    }
+  }
+
   return {
     id: e.id,
     // 👇 добавили эти поля
@@ -46,6 +57,7 @@ const normEventToShow = (e)=> {
     posterUrl: e.mainPhotoUrl || e.main_photo_url || e.artistPhoto || e.artist_photo || '',
     mainPhotoUrl: e.mainPhotoUrl || e.main_photo_url || null,
     photos: photos,
+    cast: cast, // состав артиста
     sessions: [
       {
         id: e.id,        // у нас sessionId === eventId

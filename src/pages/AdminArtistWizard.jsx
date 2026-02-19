@@ -23,9 +23,11 @@ function emptyRow(){
 
 export default function AdminArtistWizard(){
   // шаг 1: артист
-  const [artist, setArtist] = useState({ name:"", genre:"", bio:"", photo:null })
+  const [artist, setArtist] = useState({ name:"", genre:"", bio:"", photo:null, cast:[] })
   // существующие площадки для выбора
   const [venues, setVenues] = useState([])
+  // существующие артисты для выбора состава
+  const [allArtists, setAllArtists] = useState([])
   // шаг 2: расписание из нескольких строк
   const [rows, setRows] = useState([ emptyRow() ])
   const [busy, setBusy] = useState(false)
@@ -41,9 +43,16 @@ export default function AdminArtistWizard(){
 
   useEffect(()=>{
     async function load(){
-      const res = await fetch(`${API}/api/venues`)
-      const json = await res.json()
-      setVenues(Array.isArray(json) ? json : [])
+      const [venuesRes, artistsRes] = await Promise.all([
+        fetch(`${API}/api/venues`),
+        fetch(`${API}/api/artists`)
+      ])
+      const [venuesJson, artistsJson] = await Promise.all([
+        venuesRes.json(),
+        artistsRes.json()
+      ])
+      setVenues(Array.isArray(venuesJson) ? venuesJson : [])
+      setAllArtists(Array.isArray(artistsJson) ? artistsJson : [])
     }
     load()
   },[])
@@ -58,6 +67,9 @@ export default function AdminArtistWizard(){
     if(artist.genre) fd.append("genre", artist.genre)
     if(artist.bio) fd.append("bio", artist.bio)
     if(artist.photo) fd.append("photo", artist.photo)
+    if(artist.cast && artist.cast.length > 0) {
+      fd.append("cast", JSON.stringify(artist.cast))
+    }
     const res = await fetch(`${API}/api/admin/artists`, { method:"POST", body: fd })
     if(!res.ok) throw new Error("artist_create_failed")
     return await res.json() // { id, ... }
@@ -121,10 +133,14 @@ export default function AdminArtistWizard(){
       }
       alert("Готово: артист и события созданы 🎉")
       // сброс формы
-      setArtist({ name:"", genre:"", bio:"", photo:null })
+      setArtist({ name:"", genre:"", bio:"", photo:null, cast:[] })
       setRows([ emptyRow() ])
       // Сброс всех input file
       document.querySelectorAll('input[type="file"]').forEach(input => input.value = '')
+      // Перезагружаем список артистов для обновления состава
+      const artistsRes = await fetch(`${API}/api/artists`)
+      const artistsJson = await artistsRes.json()
+      setAllArtists(Array.isArray(artistsJson) ? artistsJson : [])
     }catch(err){
       console.error(err)
       alert("Ошибка при создании. Проверь данные и логи.")
@@ -147,6 +163,42 @@ export default function AdminArtistWizard(){
                  value={artist.genre} onChange={e=>setArtist(a=>({...a, genre:e.target.value}))}/>
           <textarea className="input w-full min-h-[100px]" placeholder="Биография"
                     value={artist.bio} onChange={e=>setArtist(a=>({...a, bio:e.target.value}))}/>
+          <div>
+            <label className="block text-sm mb-2">Состав (опционально) - выберите других артистов</label>
+            <select
+              multiple
+              className="input w-full min-h-[100px]"
+              value={artist.cast.map(String)}
+              onChange={(e) => {
+                const selected = Array.from(e.target.selectedOptions, option => Number(option.value));
+                setArtist(a => ({ ...a, cast: selected }));
+              }}
+            >
+              {allArtists.map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-neutral-400 mt-1">Удерживайте Ctrl/Cmd для выбора нескольких</p>
+            {artist.cast.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {artist.cast.map(id => {
+                  const actor = allArtists.find(a => a.id === id);
+                  return actor ? (
+                    <span key={id} className="tag">
+                      {actor.name}
+                      <button
+                        type="button"
+                        onClick={() => setArtist(a => ({ ...a, cast: a.cast.filter(c => c !== id) }))}
+                        className="ml-2 text-red-400 hover:text-red-300"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ) : null;
+                })}
+              </div>
+            )}
+          </div>
           <input type="file" accept="image/*"
                  onChange={e=>setArtist(a=>({...a, photo: e.target.files?.[0] || null }))}/>
         </fieldset>

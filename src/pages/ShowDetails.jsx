@@ -28,14 +28,17 @@ export default function ShowDetails(){
             <div className="flex flex-wrap gap-2">{genres.map(g=><span key={g} className="tag">{g}</span>)}</div>
           )}
           <div className="text-sm text-neutral-300">Рейтинг: {show.rating} · {show.durationMin} мин</div>
-          {show.description && (
-            <p className="text-neutral-300">{show.description}</p>
-          )}
           {cast.length > 0 && (
             <div className="text-sm">Состав: {cast.map(id=> <Link key={id} className="underline mr-1" to={`/actors/${id}`}>{actorsById[id]?.name}</Link>)}</div>
           )}
         </div>
       </div>
+      
+      {show.description && (
+        <div className="w-full">
+          <p className="text-neutral-300 whitespace-pre-wrap break-words">{show.description}</p>
+        </div>
+      )}
       
       {photos.length > 0 && (
         <div className="space-y-3">
