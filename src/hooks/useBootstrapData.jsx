@@ -59,6 +59,7 @@ const normEventToShow = (e)=> {
     photos: photos,
     cast: cast, // состав артиста
     sessions: [
+      
       {
         id: e.id,        // у нас sessionId === eventId
         dateISO,
