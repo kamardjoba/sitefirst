@@ -4,7 +4,7 @@ const API = import.meta.env.VITE_API_BASE;
 
 export default function AdminActors() {
   const [actors, setActors] = useState([]);
-  const [form, setForm] = useState({ name: "", bio: "", genre: "", photo: null, cast: [] });
+  const [form, setForm] = useState({ name: "", bio: "", genre: "", photo: null, cast: [], rating: "" });
 
   useEffect(() => {
     fetch(`${API}/api/artists`).then(r => r.json()).then(setActors);
@@ -17,6 +17,7 @@ export default function AdminActors() {
     fd.append("bio", form.bio);
     if (form.genre) fd.append("genre", form.genre);
     if (form.photo) fd.append("photo", form.photo);
+    if (form.rating) fd.append("rating", form.rating);
     if (form.cast && form.cast.length > 0) {
       fd.append("cast", JSON.stringify(form.cast));
     }
@@ -27,7 +28,7 @@ export default function AdminActors() {
     });
     const data = await res.json();
     setActors((a) => [...a, data]);
-    setForm({ name: "", bio: "", genre: "", photo: null, cast: [] });
+    setForm({ name: "", bio: "", genre: "", photo: null, cast: [], rating: "" });
     // Сброс input file
     const fileInput = document.querySelector('input[type="file"]');
     if(fileInput) fileInput.value = '';
@@ -75,6 +76,16 @@ export default function AdminActors() {
           placeholder="Жанр (опционально)"
           value={form.genre}
           onChange={(e) => setForm({ ...form, genre: e.target.value })}
+          className="input w-full"
+        />
+        <input
+          type="number"
+          step="0.1"
+          min="0"
+          max="10"
+          placeholder="Рейтинг (опционально, от 0 до 10)"
+          value={form.rating}
+          onChange={(e) => setForm({ ...form, rating: e.target.value })}
           className="input w-full"
         />
         <textarea

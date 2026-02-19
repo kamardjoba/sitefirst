@@ -23,7 +23,7 @@ function emptyRow(){
 
 export default function AdminArtistWizard(){
   // шаг 1: артист
-  const [artist, setArtist] = useState({ name:"", genre:"", bio:"", photo:null, cast:[] })
+  const [artist, setArtist] = useState({ name:"", genre:"", bio:"", photo:null, cast:[], rating:"" })
   // существующие площадки для выбора
   const [venues, setVenues] = useState([])
   // существующие артисты для выбора состава
@@ -67,6 +67,7 @@ export default function AdminArtistWizard(){
     if(artist.genre) fd.append("genre", artist.genre)
     if(artist.bio) fd.append("bio", artist.bio)
     if(artist.photo) fd.append("photo", artist.photo)
+    if(artist.rating) fd.append("rating", artist.rating)
     if(artist.cast && artist.cast.length > 0) {
       fd.append("cast", JSON.stringify(artist.cast))
     }
@@ -133,7 +134,7 @@ export default function AdminArtistWizard(){
       }
       alert("Готово: артист и события созданы 🎉")
       // сброс формы
-      setArtist({ name:"", genre:"", bio:"", photo:null, cast:[] })
+      setArtist({ name:"", genre:"", bio:"", photo:null, cast:[], rating:"" })
       setRows([ emptyRow() ])
       // Сброс всех input file
       document.querySelectorAll('input[type="file"]').forEach(input => input.value = '')
@@ -161,6 +162,16 @@ export default function AdminArtistWizard(){
                  value={artist.name} onChange={e=>setArtist(a=>({...a, name:e.target.value}))} required/>
           <input className="input w-full" placeholder="Жанр"
                  value={artist.genre} onChange={e=>setArtist(a=>({...a, genre:e.target.value}))}/>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            max="10"
+            placeholder="Рейтинг (опционально, от 0 до 10)"
+            value={artist.rating}
+            onChange={e=>setArtist(a=>({...a, rating:e.target.value}))}
+            className="input w-full"
+          />
           <textarea className="input w-full min-h-[100px]" placeholder="Биография"
                     value={artist.bio} onChange={e=>setArtist(a=>({...a, bio:e.target.value}))}/>
           <div>

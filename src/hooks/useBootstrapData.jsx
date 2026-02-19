@@ -51,7 +51,7 @@ const normEventToShow = (e)=> {
     // убедись что это поле уже добавлено ранее:
     venueCity: e.city || e.venueCity || e.venue_city,
 
-    rating: 4.8,
+    rating: e.artistRating || e.artist_rating || 0,
     popularity: 100,
     genres: (e.genre ? [e.genre] : []),
     posterUrl: e.mainPhotoUrl || e.main_photo_url || e.artistPhoto || e.artist_photo || '',
