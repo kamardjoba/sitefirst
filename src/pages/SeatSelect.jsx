@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
 import { api } from '../utils/api'
 import { useCartStore } from '../store/cart'
-import SeatPicker from '../components/SeatPicker'
+import { SeatMap, BookingSummary, Legend } from '../components/SeatSelection'
 import VenueZonesMap from '../components/VenueZonesMap'
-import { formatCurrency } from '../utils/currency'
-import { FaArrowLeft, FaShoppingCart, FaTicketAlt } from 'react-icons/fa'
+import { rowNumberToLetter } from '../utils/seatLabels'
+import { FaArrowLeft } from 'react-icons/fa'
+
+const MAX_TICKETS = 6
 
 export default function SeatSelect() {
   const { id, sessionId: sessionIdParam } = useParams()
@@ -23,15 +25,15 @@ export default function SeatSelect() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState([])
+  const [zoom, setZoom] = useState(1)
+  const [priceFilter, setPriceFilter] = useState('')
   const [viewMode, setViewMode] = useState('zones')
 
   useEffect(() => {
     let alive = true
-    const loadSeats = async () => {
+    const load = async () => {
       if (!seatEventId) {
-        setSeatsData([])
-        setZonesInfo([])
-        setError('Некорректный идентификатор события')
+        setError('Некорректный идентификатор')
         setLoading(false)
         return
       }
@@ -52,9 +54,9 @@ export default function SeatSelect() {
           setSeatsData([])
           setZonesInfo([])
         }
-        const eventRes = await api.get(`/api/events/${seatEventId}`)
-        if (eventRes.ok) {
-          const ev = await eventRes.json()
+        const evRes = await api.get(`/api/events/${seatEventId}`)
+        if (evRes.ok) {
+          const ev = await evRes.json()
           if (alive) setEventInfo(ev)
         }
       } catch (e) {
@@ -63,7 +65,7 @@ export default function SeatSelect() {
         if (alive) setLoading(false)
       }
     }
-    loadSeats()
+    load()
     return () => { alive = false }
   }, [seatEventId])
 
@@ -82,96 +84,94 @@ export default function SeatSelect() {
     return m
   }, [filteredSeatsData])
 
-  const seatPriceByRC = useMemo(() => {
-    const m = new Map()
-    filteredSeatsData.forEach(s => m.set(`${s.row}-${s.seat}`, Number(s.price || 0)))
-    return m
-  }, [filteredSeatsData])
-
-  const venueForPicker = useMemo(() => {
-    if (!filteredSeatsData.length) return null
-    const maxRow = Math.max(...filteredSeatsData.map(s => Number(s.row || 0)))
-    const maxSeat = Math.max(...filteredSeatsData.map(s => Number(s.seat || 0)))
-    const zones = {}
-    if (zonesInfo.length) {
-      zonesInfo.forEach(z => {
-        zones[z.code] = { code: z.code, name: z.name || z.code, color: z.color || '#6b7280', minPrice: z.minPrice, maxPrice: z.maxPrice }
-      })
-    } else {
-      const zoneSet = new Set(filteredSeatsData.map(s => s.zone).filter(Boolean))
-      zoneSet.forEach(z => {
-        const zoneSeats = filteredSeatsData.filter(s => s.zone === z)
-        const prices = zoneSeats.map(s => Number(s.price || 0)).filter(Boolean)
-        zones[z] = {
-          code: z, name: z,
-          color: zoneSeats[0]?.zoneColor || '#6b7280',
-          minPrice: prices.length ? Math.min(...prices) : 0,
-          maxPrice: prices.length ? Math.max(...prices) : 0
-        }
-      })
-    }
-    return { rows: maxRow, cols: maxSeat, zones }
-  }, [filteredSeatsData, zonesInfo])
-
   const handleZoneSelect = (zoneCode) => {
     const base = `/shows/${eventId}${sessionId ? `/sessions/${sessionId}` : ''}/seats`
     navigate(zoneCode ? `${base}?zone=${encodeURIComponent(zoneCode)}` : base)
     setViewMode('seats')
   }
 
-  function toggle(seat) {
-    if (!filteredSeatsData.length) return
-    const key = `${seat.row}-${seat.col}`
+  const handleToggleSeat = (seat) => {
+    const key = `${seat.row}-${seat.seat}`
     const seatId = seatIdByRC.get(key)
-    const price = seatPriceByRC.get(key) ?? seat.price
     if (!seatId) return
-    const enriched = { ...seat, price: Number(price || 0), seatId }
-    const mk = s => `${s.row}-${s.col}`
-    setSelected(cur =>
-      cur.some(s => mk(s) === mk(enriched))
-        ? cur.filter(s => mk(s) !== mk(enriched))
-        : [...cur, enriched]
-    )
+    const price = Number(seat.price || 0)
+    setSelected(cur => {
+      const idx = cur.findIndex(s => `${s.row}-${s.seat}` === key)
+      if (idx >= 0) return cur.filter((_, i) => i !== idx)
+      if (cur.length >= MAX_TICKETS) return cur
+      return [...cur, { row: seat.row, seat: seat.seat, seatId, price }]
+    })
   }
 
-  const disabledAdd = !filteredSeatsData.length || !selected.length || selected.some(s => !s.seatId)
-  const totalSum = selected.reduce((s, x) => s + Number(x.price || 0), 0)
+  const handleAutoSelectBest = (seats) => {
+    const next = seats.map(s => {
+      const key = `${s.row}-${s.seat}`
+      const seatId = seatIdByRC.get(key)
+      return seatId ? { row: s.row, seat: s.seat, seatId, price: Number(s.price || 0) } : null
+    }).filter(Boolean)
+    setSelected(next)
+  }
 
-  function addSelectedToCart() {
-    if (disabledAdd) return
-    selected.forEach(seat => {
+  const totalSum = selected.reduce((s, x) => s + x.price, 0)
+  const pricePerTicket = selected.length ? totalSum / selected.length : null
+  const selectedForSummary = useMemo(() => selected.map(s => ({
+    rowLabel: rowNumberToLetter(s.row),
+    seatNumber: s.seat,
+    price: s.price
+  })), [selected])
+
+  const handleContinue = () => {
+    if (!selected.length) return
+    selected.forEach(s => {
       addToCart({
         eventId,
         showId: eventId,
         sessionId: sessionId || eventId,
-        seatId: seat.seatId,
-        seat: { row: seat.row, col: seat.col },
-        price: Number(seat.price || 0)
+        seatId: s.seatId,
+        seat: { row: s.row, col: s.seat },
+        price: s.price
       })
     })
     setSelected([])
     navigate('/cart')
   }
 
+  const dateTimeStr = useMemo(() => {
+    if (!eventInfo?.startsAt) return null
+    const d = new Date(eventInfo.startsAt)
+    return d.toLocaleString('ru-RU', { dateStyle: 'long', timeStyle: 'short' })
+  }, [eventInfo?.startsAt])
+
+  const locationStr = useMemo(() => {
+    if (!eventInfo?.venueName) return null
+    return [eventInfo.venueName, eventInfo.city].filter(Boolean).join(', ')
+  }, [eventInfo?.venueName, eventInfo?.city])
+
   if (loading) {
     return (
-      <section className="min-h-[50vh] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-neutral-400">
-          <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-          <p>Загрузка схемы зала…</p>
+      <div className="min-h-[60vh] flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="inline-block w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4" />
+          <p className="text-slate-600 font-medium">Загрузка схемы зала</p>
+          <div className="mt-4 w-64 h-48 rounded-xl bg-slate-200 animate-pulse mx-auto" />
         </div>
-      </section>
+      </div>
     )
   }
 
   if (error || !seatsData.length) {
     return (
-      <section className="p-6 max-w-lg mx-auto text-center space-y-4">
-        <p className="text-red-400">{error || 'Нет данных по местам'}</p>
-        <Link to={`/shows/${eventId}`} className="btn inline-flex items-center gap-2">
-          <FaArrowLeft /> Назад к событию
-        </Link>
-      </section>
+      <div className="min-h-[40vh] flex items-center justify-center bg-slate-50 p-6">
+        <div className="text-center max-w-md">
+          <p className="text-red-600 font-medium mb-4">{error || 'Нет данных по местам'}</p>
+          <Link
+            to={`/shows/${eventId}`}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 text-white font-medium hover:bg-slate-700"
+          >
+            <FaArrowLeft /> Назад к событию
+          </Link>
+        </div>
+      </div>
     )
   }
 
@@ -180,112 +180,98 @@ export default function SeatSelect() {
       ? `${eventInfo.venueName}${eventInfo?.city ? `, ${eventInfo.city}` : ''}`
       : null
     return (
-      <section className="pb-24">
-        <header className="flex items-center gap-4 mb-6">
+      <div className="min-h-screen bg-slate-50 py-6 px-4">
+        <header className="max-w-2xl mx-auto mb-6 flex items-center gap-4">
           <Link
             to={`/shows/${eventId}`}
-            className="p-2.5 rounded-xl bg-neutral-800/80 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 hover:text-white transition"
+            className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm"
             aria-label="Назад"
           >
             <FaArrowLeft className="text-lg" />
           </Link>
-          <div className="min-w-0">
-            <h1 className="text-xl md:text-2xl font-bold truncate">{eventInfo?.title || 'Выбор мест'}</h1>
-            <p className="text-neutral-400 text-sm mt-0.5">{venueName || 'Выберите сектор'}</p>
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">{eventInfo?.title || 'Выбор мест'}</h1>
+            <p className="text-slate-500 text-sm mt-0.5">{venueName || 'Выберите сектор'}</p>
           </div>
         </header>
-        <VenueZonesMap
-          seats={seatsData}
-          zones={zonesInfo}
-          onZoneSelect={handleZoneSelect}
-          venueName={venueName}
-        />
-      </section>
+        <div className="max-w-2xl mx-auto">
+          <VenueZonesMap
+            seats={seatsData}
+            zones={zonesInfo}
+            onZoneSelect={handleZoneSelect}
+            venueName={venueName}
+          />
+        </div>
+      </div>
     )
   }
 
-  const safeVenue = venueForPicker || { rows: 0, cols: 0, zones: {} }
-  const currentZone = zonesInfo.find(z => z.code === selectedZone)
+  const priceFilterNum = priceFilter ? Number(priceFilter) : null
 
   return (
-    <section className="pb-32 md:pb-8">
-      <header className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              navigate(`/shows/${eventId}${sessionId ? `/sessions/${sessionId}` : ''}/seats`)
-              setViewMode('zones')
-            }}
-            className="p-2.5 rounded-xl bg-neutral-800/80 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 hover:text-white transition"
-            aria-label="Другой сектор"
-          >
-            <FaArrowLeft className="text-lg" />
-          </button>
-          <div>
-            <h1 className="text-lg md:text-xl font-bold">
-              {currentZone ? currentZone.name : 'Зал'}
-            </h1>
-            <p className="text-neutral-400 text-sm">
-              {currentZone?.minPrice != null && (currentZone.minPrice === currentZone.maxPrice
-                ? formatCurrency(currentZone.minPrice)
-                : `${formatCurrency(currentZone.minPrice)} – ${formatCurrency(currentZone.maxPrice)}`)}
-            </p>
-          </div>
-        </div>
-      </header>
-
-      <div className="rounded-2xl border border-neutral-800 bg-neutral-950/80 overflow-hidden">
-        <SeatPicker
-          venue={safeVenue}
-          seats={filteredSeatsData}
-          selected={selected}
-          onToggle={toggle}
-        />
-      </div>
-
-      {/* Sticky bottom bar — как на Ticketmaster / Eventim */}
-      <div
-        className="fixed inset-x-0 bottom-0 z-40 bg-neutral-950/95 border-t border-neutral-800 shadow-[0_-8px_32px_rgba(0,0,0,0.5)] md:rounded-t-2xl"
-        style={{ backdropFilter: 'saturate(180%) blur(12px)' }}
-      >
-        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-brand-500/20 border border-brand-500/50 flex items-center justify-center">
-              <FaTicketAlt className="text-xl text-brand-400" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-white">
-                {selected.length === 0
-                  ? 'Выберите места на схеме'
-                  : `${selected.length} ${selected.length === 1 ? 'билет' : selected.length < 5 ? 'билета' : 'билетов'}`}
-              </p>
-              {selected.length > 0 && (
-                <p className="text-sm text-neutral-400 truncate">
-                  {selected.map(s => `Ряд ${s.row}, место ${s.col}`).join(' · ')}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-4 flex-shrink-0">
-            {selected.length > 0 && (
-              <div className="text-right">
-                <p className="text-xs text-neutral-500 uppercase tracking-wider">Итого</p>
-                <p className="text-xl font-bold text-white">{formatCurrency(totalSum)}</p>
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={addSelectedToCart}
-              disabled={disabledAdd}
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold bg-brand-600 hover:bg-brand-500 text-white shadow-lg hover:shadow-brand-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-brand-600"
+    <div className="min-h-screen bg-slate-50 py-6 px-4">
+      <div className="max-w-7xl mx-auto">
+        <header className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Link
+              to={`/shows/${eventId}${sessionId ? `/sessions/${sessionId}` : ''}/seats`}
+              className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm"
+              aria-label="Другой сектор"
             >
-              <FaShoppingCart className="text-lg" />
-              {selected.length ? `В корзину · ${formatCurrency(totalSum)}` : 'В корзину'}
-            </button>
+              <FaArrowLeft className="text-lg" />
+            </Link>
+            <div>
+              <h1 className="text-lg font-bold text-slate-800">Выбор мест</h1>
+              <p className="text-slate-500 text-sm">
+                Максимум {MAX_TICKETS} билетов · Выбрано {selected.length}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <span>Цена до</span>
+              <input
+                type="number"
+                min="0"
+                step="10"
+                value={priceFilter}
+                onChange={(e) => setPriceFilter(e.target.value)}
+                placeholder="—"
+                className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-slate-800 text-sm"
+              />
+            </label>
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <SeatMap
+              seats={filteredSeatsData}
+              selectedList={selected}
+              onToggleSeat={handleToggleSeat}
+              maxSelection={MAX_TICKETS}
+              zoom={zoom}
+              onZoomChange={setZoom}
+              priceFilter={priceFilterNum}
+              onAutoSelectBest={handleAutoSelectBest}
+            />
+            <Legend />
+          </div>
+          <div className="lg:col-span-1">
+            <div className="sticky top-4">
+              <BookingSummary
+                eventName={eventInfo?.title}
+                dateTime={dateTimeStr}
+                location={locationStr}
+                selectedSeats={selectedForSummary}
+                pricePerTicket={pricePerTicket}
+                total={totalSum}
+                onContinue={handleContinue}
+              />
+            </div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
   )
 }
