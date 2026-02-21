@@ -14,61 +14,61 @@ export default function BookingSummary({
   const hasSelection = selectedSeats.length > 0
 
   return (
-    <aside className="rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden flex flex-col h-fit">
-      <div className="p-5 border-b border-slate-100">
-        <h2 className="text-lg font-bold text-slate-800 truncate">{eventName || 'Событие'}</h2>
+    <aside className="card overflow-hidden flex flex-col h-fit">
+      <div className="p-5 border-b border-neutral-800">
+        <h2 className="text-lg font-bold text-white truncate">{eventName || 'Событие'}</h2>
         {dateTime && (
-          <div className="flex items-center gap-2 mt-2 text-sm text-slate-600">
-            <FaCalendarAlt className="text-slate-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 mt-2 text-sm text-neutral-400">
+            <FaCalendarAlt className="text-neutral-500 flex-shrink-0" />
             <span>{dateTime}</span>
           </div>
         )}
         {location && (
-          <div className="flex items-center gap-2 mt-1 text-sm text-slate-600">
-            <FaMapMarkerAlt className="text-slate-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 mt-1 text-sm text-neutral-400">
+            <FaMapMarkerAlt className="text-neutral-500 flex-shrink-0" />
             <span>{location}</span>
           </div>
         )}
       </div>
 
       <div className="p-5 flex-1 min-h-0">
-        <div className="flex items-center gap-2 text-slate-700 font-semibold mb-3">
-          <FaTicketAlt className="text-blue-500" />
+        <div className="flex items-center gap-2 text-neutral-300 font-semibold mb-3">
+          <FaTicketAlt className="text-brand-500" />
           <span>Выбранные места</span>
         </div>
         {selectedSeats.length === 0 ? (
-          <p className="text-sm text-slate-500">Выберите места на схеме</p>
+          <p className="text-sm text-neutral-500">Выберите места на схеме</p>
         ) : (
           <ul className="space-y-2 max-h-40 overflow-y-auto">
             {selectedSeats.map((s, i) => (
               <li
                 key={i}
-                className="flex justify-between text-sm py-1.5 px-2 rounded-lg bg-slate-50"
+                className="flex justify-between text-sm py-1.5 px-2 rounded-lg bg-neutral-800/50 border border-neutral-700"
               >
-                <span className="text-slate-700">Ряд {s.rowLabel}, Место {s.seatNumber}</span>
-                <span className="font-medium text-slate-800">{formatCurrency(s.price)}</span>
+                <span className="text-neutral-300">Ряд {s.rowLabel}, Место {s.seatNumber}</span>
+                <span className="font-medium text-white">{formatCurrency(s.price)}</span>
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      <div className="p-5 border-t border-slate-200 bg-slate-50 space-y-3">
+      <div className="p-5 border-t border-neutral-800 bg-neutral-800/30 space-y-3">
         {pricePerTicket != null && selectedSeats.length > 0 && (
-          <div className="flex justify-between text-sm text-slate-600">
+          <div className="flex justify-between text-sm text-neutral-400">
             <span>Цена за билет</span>
             <span>{formatCurrency(pricePerTicket)}</span>
           </div>
         )}
         <div className="flex justify-between items-center pt-2">
-          <span className="font-bold text-slate-800">Итого</span>
-          <span className="text-xl font-bold text-blue-600">{formatCurrency(total)}</span>
+          <span className="font-bold text-white">Итого</span>
+          <span className="text-xl font-bold text-brand-400">{formatCurrency(total)}</span>
         </div>
         <button
           type="button"
           disabled={!hasSelection || isLoading}
           onClick={onContinue}
-          className="w-full py-3.5 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg disabled:shadow-none"
+          className="btn w-full py-3.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {hasSelection ? `Продолжить · ${formatCurrency(total)}` : 'Продолжить'}
         </button>

@@ -13,7 +13,7 @@ export default function SeatRow({
   return (
     <div className="flex items-center justify-center gap-1 sm:gap-1.5">
       <span
-        className={`w-6 sm:w-7 text-right text-sm font-semibold text-slate-600 ${isRowHighlighted ? 'text-blue-600' : ''}`}
+        className={`w-6 sm:w-7 text-right text-sm font-semibold text-neutral-400 ${isRowHighlighted ? 'text-brand-400' : ''}`}
       >
         {rowLabel}
       </span>

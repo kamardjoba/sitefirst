@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import { api } from '../utils/api'
 import { useCartStore } from '../store/cart'
 import { SeatMap, BookingSummary, Legend } from '../components/SeatSelection'
-import VenueZonesMap from '../components/VenueZonesMap'
 import { rowNumberToLetter } from '../utils/seatLabels'
 import { FaArrowLeft } from 'react-icons/fa'
 
@@ -11,12 +10,10 @@ const MAX_TICKETS = 6
 
 export default function SeatSelect() {
   const { id, sessionId: sessionIdParam } = useParams()
-  const [searchParams] = useSearchParams()
   const eventId = Number(id)
   const sessionId = sessionIdParam ? Number(sessionIdParam) : null
   const seatEventId = sessionId || eventId
   const navigate = useNavigate()
-  const selectedZone = searchParams.get('zone')
   const addToCart = useCartStore(s => s.add)
 
   const [seatsData, setSeatsData] = useState([])
@@ -27,7 +24,6 @@ export default function SeatSelect() {
   const [selected, setSelected] = useState([])
   const [zoom, setZoom] = useState(1)
   const [priceFilter, setPriceFilter] = useState('')
-  const [viewMode, setViewMode] = useState('zones')
 
   useEffect(() => {
     let alive = true
@@ -69,26 +65,14 @@ export default function SeatSelect() {
     return () => { alive = false }
   }, [seatEventId])
 
-  useEffect(() => {
-    setViewMode(selectedZone ? 'seats' : 'zones')
-  }, [selectedZone])
-
-  const filteredSeatsData = useMemo(() => {
-    if (!selectedZone || viewMode === 'zones') return seatsData
-    return seatsData.filter(s => s.zone === selectedZone)
-  }, [seatsData, selectedZone, viewMode])
+  // Всегда показываем полную схему зала (все зоны), чтобы было видно расположение: сцена → VIP → A → B
+  const seatsForMap = useMemo(() => seatsData, [seatsData])
 
   const seatIdByRC = useMemo(() => {
     const m = new Map()
-    filteredSeatsData.forEach(s => m.set(`${s.row}-${s.seat}`, s.seatId))
+    seatsData.forEach(s => m.set(`${s.row}-${s.seat}`, s.seatId))
     return m
-  }, [filteredSeatsData])
-
-  const handleZoneSelect = (zoneCode) => {
-    const base = `/shows/${eventId}${sessionId ? `/sessions/${sessionId}` : ''}/seats`
-    navigate(zoneCode ? `${base}?zone=${encodeURIComponent(zoneCode)}` : base)
-    setViewMode('seats')
-  }
+  }, [seatsData])
 
   const handleToggleSeat = (seat) => {
     const key = `${seat.row}-${seat.seat}`
@@ -104,11 +88,13 @@ export default function SeatSelect() {
   }
 
   const handleAutoSelectBest = (seats) => {
-    const next = seats.map(s => {
-      const key = `${s.row}-${s.seat}`
-      const seatId = seatIdByRC.get(key)
-      return seatId ? { row: s.row, seat: s.seat, seatId, price: Number(s.price || 0) } : null
-    }).filter(Boolean)
+    const next = seats
+      .map(s => {
+        const key = `${s.row}-${s.seat}`
+        const seatId = seatIdByRC.get(key)
+        return seatId ? { row: s.row, seat: s.seat, seatId, price: Number(s.price || 0) } : null
+      })
+      .filter(Boolean)
     setSelected(next)
   }
 
@@ -149,11 +135,11 @@ export default function SeatSelect() {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center bg-slate-50">
+      <div className="min-h-[60vh] flex items-center justify-center bg-neutral-950">
         <div className="text-center">
-          <div className="inline-block w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4" />
-          <p className="text-slate-600 font-medium">Загрузка схемы зала</p>
-          <div className="mt-4 w-64 h-48 rounded-xl bg-slate-200 animate-pulse mx-auto" />
+          <div className="inline-block w-12 h-12 border-4 border-neutral-700 border-t-brand-500 rounded-full animate-spin mb-4" />
+          <p className="text-neutral-400 font-medium">Загрузка схемы зала</p>
+          <div className="mt-4 w-64 h-48 rounded-xl bg-neutral-800/80 animate-pulse mx-auto" />
         </div>
       </div>
     )
@@ -161,12 +147,12 @@ export default function SeatSelect() {
 
   if (error || !seatsData.length) {
     return (
-      <div className="min-h-[40vh] flex items-center justify-center bg-slate-50 p-6">
+      <div className="min-h-[40vh] flex items-center justify-center bg-neutral-950 p-6">
         <div className="text-center max-w-md">
-          <p className="text-red-600 font-medium mb-4">{error || 'Нет данных по местам'}</p>
+          <p className="text-red-400 font-medium mb-4">{error || 'Нет данных по местам'}</p>
           <Link
             to={`/shows/${eventId}`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 text-white font-medium hover:bg-slate-700"
+            className="btn inline-flex items-center gap-2"
           >
             <FaArrowLeft /> Назад к событию
           </Link>
@@ -175,60 +161,29 @@ export default function SeatSelect() {
     )
   }
 
-  if (viewMode === 'zones' || !selectedZone) {
-    const venueName = eventInfo?.venueName
-      ? `${eventInfo.venueName}${eventInfo?.city ? `, ${eventInfo.city}` : ''}`
-      : null
-    return (
-      <div className="min-h-screen bg-slate-50 py-6 px-4">
-        <header className="max-w-2xl mx-auto mb-6 flex items-center gap-4">
-          <Link
-            to={`/shows/${eventId}`}
-            className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm"
-            aria-label="Назад"
-          >
-            <FaArrowLeft className="text-lg" />
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">{eventInfo?.title || 'Выбор мест'}</h1>
-            <p className="text-slate-500 text-sm mt-0.5">{venueName || 'Выберите сектор'}</p>
-          </div>
-        </header>
-        <div className="max-w-2xl mx-auto">
-          <VenueZonesMap
-            seats={seatsData}
-            zones={zonesInfo}
-            onZoneSelect={handleZoneSelect}
-            venueName={venueName}
-          />
-        </div>
-      </div>
-    )
-  }
-
   const priceFilterNum = priceFilter ? Number(priceFilter) : null
 
   return (
-    <div className="min-h-screen bg-slate-50 py-6 px-4">
+    <div className="min-h-screen bg-neutral-950 py-6 px-4">
       <div className="max-w-7xl mx-auto">
         <header className="flex items-center justify-between gap-4 mb-6 flex-wrap">
           <div className="flex items-center gap-3">
             <Link
-              to={`/shows/${eventId}${sessionId ? `/sessions/${sessionId}` : ''}/seats`}
-              className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm"
-              aria-label="Другой сектор"
+              to={`/shows/${eventId}`}
+              className="p-2.5 rounded-xl border border-neutral-700 bg-neutral-900/80 text-neutral-300 hover:bg-neutral-800 hover:text-white transition-colors"
+              aria-label="Назад"
             >
               <FaArrowLeft className="text-lg" />
             </Link>
             <div>
-              <h1 className="text-lg font-bold text-slate-800">Выбор мест</h1>
-              <p className="text-slate-500 text-sm">
-                Максимум {MAX_TICKETS} билетов · Выбрано {selected.length}
+              <h1 className="text-lg font-bold text-white">{eventInfo?.title || 'Выбор мест'}</h1>
+              <p className="text-neutral-400 text-sm">
+                Сцена сверху · VIP → Сектор A → Сектор B · макс. {MAX_TICKETS} билетов · выбрано {selected.length}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-600">
+            <label className="flex items-center gap-2 text-sm text-neutral-400">
               <span>Цена до</span>
               <input
                 type="number"
@@ -237,7 +192,7 @@ export default function SeatSelect() {
                 value={priceFilter}
                 onChange={(e) => setPriceFilter(e.target.value)}
                 placeholder="—"
-                className="w-24 px-3 py-2 rounded-lg border border-slate-200 text-slate-800 text-sm"
+                className="input w-24 py-2 text-sm"
               />
             </label>
           </div>
@@ -246,7 +201,7 @@ export default function SeatSelect() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
             <SeatMap
-              seats={filteredSeatsData}
+              seats={seatsForMap}
               selectedList={selected}
               onToggleSeat={handleToggleSeat}
               maxSelection={MAX_TICKETS}

@@ -77,39 +77,49 @@ export default function SeatMap({
     onAutoSelectBest(toSelect)
   }
 
+  // Группировка рядов по зонам для подписей (VIP, A, B)
+  const rowsByZone = useMemo(() => {
+    const zoneOrder = []
+    const seen = new Set()
+    rows.forEach(([rowNum, rowSeats]) => {
+      const zone = rowSeats[0]?.zone
+      if (zone && !seen.has(zone)) {
+        seen.add(zone)
+        zoneOrder.push({ zone, rowNum })
+      }
+    })
+    return zoneOrder
+  }, [rows])
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+    <div className="card overflow-hidden">
+      <div className="p-4 border-b border-neutral-800 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => onZoomChange?.(Math.min(2, (zoom || 1) + 0.2))}
-            className="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium"
+            className="w-9 h-9 rounded-lg border border-neutral-700 bg-neutral-800/80 text-neutral-300 hover:bg-neutral-700 font-medium transition-colors"
           >
             +
           </button>
           <button
             type="button"
             onClick={() => onZoomChange?.(Math.max(0.5, (zoom || 1) - 0.2))}
-            className="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium"
+            className="w-9 h-9 rounded-lg border border-neutral-700 bg-neutral-800/80 text-neutral-300 hover:bg-neutral-700 font-medium transition-colors"
           >
             −
           </button>
-          <span className="text-sm text-slate-500 ml-1">Масштаб {Math.round((zoom || 1) * 100)}%</span>
+          <span className="text-sm text-neutral-400 ml-1">Масштаб {Math.round((zoom || 1) * 100)}%</span>
         </div>
         {onAutoSelectBest && (
-          <button
-            type="button"
-            onClick={handleAutoSelect}
-            className="px-4 py-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors"
-          >
+          <button type="button" onClick={handleAutoSelect} className="btn text-sm py-2">
             Автовыбор лучших мест
           </button>
         )}
       </div>
 
       {errorMessage && (
-        <div className="mx-4 mt-2 py-2 px-3 rounded-lg bg-red-50 text-red-700 text-sm font-medium">
+        <div className="mx-4 mt-2 py-2 px-3 rounded-lg bg-red-500/10 text-red-400 text-sm font-medium border border-red-500/30">
           {errorMessage}
         </div>
       )}
@@ -119,13 +129,14 @@ export default function SeatMap({
           className="inline-flex flex-col items-center gap-1.5 transition-transform duration-200 origin-top"
           style={{ transform: `scale(${zoom || 1})` }}
         >
-          {/* Сцена */}
-          <div className="w-full max-w-2xl py-4 rounded-t-xl bg-slate-800 text-white text-center shadow-inner">
-            <span className="text-sm font-bold tracking-widest">СЦЕНА / ЭКРАН</span>
+          {/* Сцена — сверху, как в зале */}
+          <div className="w-full max-w-2xl py-4 rounded-t-xl bg-gradient-to-b from-amber-950/80 to-neutral-900 border-b-2 border-amber-600/40 text-center">
+            <span className="text-sm font-bold tracking-widest text-amber-200/90">СЦЕНА</span>
           </div>
 
-          {/* Ряды с проходами: разбиваем по секциям (например после 6 и 13 места) */}
+          {/* Ряды с подписями зон (VIP, Сектор A, Сектор B) и проходами */}
           {rows.map(([rowNum, rowSeats]) => {
+            const zoneLabel = rowsByZone.find(z => z.rowNum === rowNum)
             const rowLabel = rowNumberToLetter(rowNum)
             const sections = []
             const aisleIndices = [6, 13]
@@ -140,18 +151,27 @@ export default function SeatMap({
             if (sections.length === 0) sections.push(rowSeats)
 
             return (
-              <div key={rowNum} className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
-                {sections.map((sectionSeats, idx) => (
-                  <SeatRow
-                    key={idx}
-                    rowLabel={rowLabel}
-                    seats={sectionSeats}
-                    selectedSet={selectedSet}
-                    onSeatToggle={handleSeatToggle}
-                    maxSelection={maxSelection}
-                    aisleAfter={idx < sections.length - 1 ? 1 : 0}
-                  />
-                ))}
+              <div key={rowNum} className="flex flex-col items-center gap-0.5">
+                {zoneLabel && (
+                  <div className="w-full max-w-2xl text-center">
+                    <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                      {zoneLabel.zone === 'VIP' ? 'VIP' : `Сектор ${zoneLabel.zone}`}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
+                  {sections.map((sectionSeats, idx) => (
+                    <SeatRow
+                      key={idx}
+                      rowLabel={rowLabel}
+                      seats={sectionSeats}
+                      selectedSet={selectedSet}
+                      onSeatToggle={handleSeatToggle}
+                      maxSelection={maxSelection}
+                      aisleAfter={idx < sections.length - 1 ? 1 : 0}
+                    />
+                  ))}
+                </div>
               </div>
             )
           })}
