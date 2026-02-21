@@ -6,7 +6,16 @@ const API = import.meta.env.VITE_API_BASE
 export default function AdminEvents(){
   const [artists,setArtists] = useState([])
   const [venues,setVenues]   = useState([])
-  const [form,set] = useState({ artist_id:"", venue_id:"", starts_at:"", title:"", description:"" })
+  const [form, set] = useState({
+    artist_id: "",
+    venue_id: "",
+    starts_at: "",
+    title: "",
+    description: "",
+    price_vip: "",
+    price_a: "",
+    price_b: ""
+  })
   const [photos, setPhotos] = useState([])
   const [busy, setBusy] = useState(false)
 
@@ -26,9 +35,15 @@ export default function AdminEvents(){
       formData.append("artist_id", form.artist_id)
       formData.append("venue_id", form.venue_id)
       formData.append("starts_at", form.starts_at)
-      if(form.title) formData.append("title", form.title)
-      if(form.description) formData.append("description", form.description)
-      
+      if (form.title) formData.append("title", form.title)
+      if (form.description) formData.append("description", form.description)
+
+      const prices = []
+      if (form.price_vip !== "" && Number(form.price_vip) >= 0) prices.push({ zone_code: "VIP", base_price: Number(form.price_vip), multiplier: 1 })
+      if (form.price_a !== "" && Number(form.price_a) >= 0) prices.push({ zone_code: "A", base_price: Number(form.price_a), multiplier: 1 })
+      if (form.price_b !== "" && Number(form.price_b) >= 0) prices.push({ zone_code: "B", base_price: Number(form.price_b), multiplier: 1 })
+      if (prices.length) formData.append("prices", JSON.stringify(prices))
+
       // Добавляем фото
       photos.forEach((photo) => {
         formData.append("photos", photo)
@@ -42,7 +57,7 @@ export default function AdminEvents(){
       if(res.ok) {
         alert("Событие создано")
         // Сброс формы
-        set({ artist_id:"", venue_id:"", starts_at:"", title:"", description:"" })
+        set({ artist_id: "", venue_id: "", starts_at: "", title: "", description: "", price_vip: "", price_a: "", price_b: "" })
         setPhotos([])
         // Сброс input file
         const fileInput = document.querySelector('input[type="file"]')
@@ -77,12 +92,50 @@ export default function AdminEvents(){
         </select>
         <input className="input w-full" type="datetime-local" value={form.starts_at} onChange={e=>set({...form, starts_at:e.target.value})} required/>
         <input className="input w-full" placeholder="Название события (опционально)" value={form.title} onChange={e=>set({...form, title:e.target.value})}/>
-        <textarea 
-          className="input w-full min-h-[100px]" 
+        <textarea
+          className="input w-full min-h-[100px]"
           placeholder="Описание события (опционально)"
-          value={form.description} 
+          value={form.description}
           onChange={e=>set({...form, description:e.target.value})}
         />
+        <div className="grid grid-cols-3 gap-3">
+          <label className="block text-sm text-neutral-400">
+            Цена VIP (₽)
+            <input
+              className="input w-full mt-1"
+              type="number"
+              min="0"
+              step="10"
+              placeholder="—"
+              value={form.price_vip}
+              onChange={e=>set({...form, price_vip:e.target.value})}
+            />
+          </label>
+          <label className="block text-sm text-neutral-400">
+            Цена сектор A (₽)
+            <input
+              className="input w-full mt-1"
+              type="number"
+              min="0"
+              step="10"
+              placeholder="—"
+              value={form.price_a}
+              onChange={e=>set({...form, price_a:e.target.value})}
+            />
+          </label>
+          <label className="block text-sm text-neutral-400">
+            Цена сектор B (₽)
+            <input
+              className="input w-full mt-1"
+              type="number"
+              min="0"
+              step="10"
+              placeholder="—"
+              value={form.price_b}
+              onChange={e=>set({...form, price_b:e.target.value})}
+            />
+          </label>
+        </div>
         <div>
           <label className="block text-sm mb-2">Фото события (опционально)</label>
           <p className="text-xs text-neutral-400 mb-2">Первое фото будет главным, остальные - дополнительными</p>

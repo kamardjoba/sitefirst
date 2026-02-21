@@ -134,22 +134,10 @@ export default function SeatMap({
             <span className="text-sm font-bold tracking-widest text-amber-200/90">СЦЕНА</span>
           </div>
 
-          {/* Ряды с подписями зон (VIP, Сектор A, Сектор B) и проходами */}
+          {/* Ряды одной линией (без шахматного разрыва): сцена → VIP → A → B */}
           {rows.map(([rowNum, rowSeats]) => {
             const zoneLabel = rowsByZone.find(z => z.rowNum === rowNum)
             const rowLabel = rowNumberToLetter(rowNum)
-            const sections = []
-            const aisleIndices = [6, 13]
-            let start = 0
-            for (const idx of aisleIndices) {
-              if (idx <= rowSeats.length) {
-                sections.push(rowSeats.slice(start, idx))
-                start = idx
-              }
-            }
-            if (start < rowSeats.length) sections.push(rowSeats.slice(start))
-            if (sections.length === 0) sections.push(rowSeats)
-
             return (
               <div key={rowNum} className="flex flex-col items-center gap-0.5">
                 {zoneLabel && (
@@ -159,18 +147,15 @@ export default function SeatMap({
                     </span>
                   </div>
                 )}
-                <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
-                  {sections.map((sectionSeats, idx) => (
-                    <SeatRow
-                      key={idx}
-                      rowLabel={rowLabel}
-                      seats={sectionSeats}
-                      selectedSet={selectedSet}
-                      onSeatToggle={handleSeatToggle}
-                      maxSelection={maxSelection}
-                      aisleAfter={idx < sections.length - 1 ? 1 : 0}
-                    />
-                  ))}
+                <div className="flex items-center justify-center">
+                  <SeatRow
+                    rowLabel={rowLabel}
+                    seats={rowSeats}
+                    selectedSet={selectedSet}
+                    onSeatToggle={handleSeatToggle}
+                    maxSelection={maxSelection}
+                    aisleAfter={0}
+                  />
                 </div>
               </div>
             )
