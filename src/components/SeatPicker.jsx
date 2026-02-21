@@ -259,7 +259,9 @@ export default function SeatPicker({ venue, seats, selected, onToggle }) {
     if (rowCells.length > 0) {
       grid.push(
         <div key={`row-${r}`} className="flex items-center gap-1">
-          <div className="w-10 text-xs text-neutral-400 text-right pr-2 font-bold">{r}</div>
+          <div className="w-10 text-xs text-neutral-400 text-right pr-2 font-bold" title={`Ряд ${r}`}>
+            {r}
+          </div>
           <div className="flex-1 flex items-center justify-center flex-wrap">{rowCells}</div>
           <div className="w-10 text-xs text-neutral-400 text-left pl-2 font-bold">{r}</div>
         </div>
@@ -300,14 +302,16 @@ export default function SeatPicker({ venue, seats, selected, onToggle }) {
         </div>
 
         {/* Сцена */}
-        <div className="text-center relative">
-          <div className="inline-block px-12 py-4 bg-gradient-to-b from-yellow-600 via-yellow-700 to-yellow-800 border-4 border-yellow-500 rounded-2xl shadow-2xl relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
-            <div className="relative text-lg font-black text-white tracking-widest drop-shadow-lg">
-              🎤 STAGE 🎤
+        <div className="text-center relative mb-4">
+          <div
+            className="w-full py-5 rounded-xl border-2 border-amber-600/50 bg-gradient-to-b from-amber-950/90 via-neutral-900 to-neutral-950 shadow-inner"
+            style={{ boxShadow: 'inset 0 2px 15px rgba(0,0,0,0.4)' }}
+          >
+            <div className="relative text-xl font-black text-white/95 tracking-[0.2em] drop-shadow-lg">
+              СЦЕНА
             </div>
+            <div className="mt-1 text-[10px] text-neutral-500 uppercase tracking-wider">Ряд 1 — ближе к сцене</div>
           </div>
-          <div className="mt-2 text-xs text-neutral-500">Входы: ← →</div>
         </div>
 
         {/* Схема зала с возможностью панорамирования и зума */}

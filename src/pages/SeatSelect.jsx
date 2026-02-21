@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
 import { api } from '../utils/api'
 import { useCartStore } from '../store/cart'
 import SeatPicker from '../components/SeatPicker'
@@ -22,6 +22,7 @@ export default function SeatSelect() {
 
   const [seatsData, setSeatsData] = useState([])   // [{ seatId,row,seat,zone,status,price,zoneName,zoneColor }]
   const [zonesInfo, setZonesInfo] = useState([])  // [{ code, name, color, minPrice, maxPrice }]
+  const [eventInfo, setEventInfo] = useState(null)  // { title, venueName, ... }
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [selected, setSelected] = useState([])      // [{ row,col,price,seatId }]
@@ -54,12 +55,16 @@ export default function SeatSelect() {
           setSeatsData(data)
           setZonesInfo([])
         } else if (data.seats && Array.isArray(data.seats)) {
-          // Всегда загружаем все места для схемы зон
           setSeatsData(data.seats)
           setZonesInfo(data.zones || [])
         } else {
           setSeatsData([])
           setZonesInfo([])
+        }
+        const eventRes = await api.get(`/api/events/${seatEventId}`)
+        if (eventRes.ok) {
+          const ev = await eventRes.json()
+          if (alive) setEventInfo(ev)
         }
       } catch (e) {
         if (!alive) return
@@ -216,19 +221,33 @@ export default function SeatSelect() {
     return <section className="p-4"><div className="text-red-400">{error || 'Нет данных по местам'}</div></section>
   }
 
-  // Если режим просмотра зон или зона не выбрана - показываем схему зон
   if (viewMode === 'zones' || !selectedZone) {
+    const venueName = eventInfo?.venueName
+      ? `${eventInfo.venueName}${eventInfo?.city ? `, ${eventInfo.city}` : ''}`
+      : null
     return (
       <section className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Выбор зоны</h1>
-          <p className="text-neutral-400">Выберите зону для просмотра доступных мест</p>
+        <div className="flex items-center gap-4">
+          <Link
+            to={`/shows/${eventId}`}
+            className="p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 hover:text-white transition"
+            title="Назад к событию"
+          >
+            <FaArrowLeft />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">Выбор мест</h1>
+            <p className="text-neutral-400 text-sm mt-1">
+              {eventInfo?.title || 'Выберите зону зала'}
+            </p>
+          </div>
         </div>
 
         <VenueZonesMap
           seats={seatsData}
           zones={zonesInfo}
           onZoneSelect={handleZoneSelect}
+          venueName={venueName}
         />
       </section>
     )
