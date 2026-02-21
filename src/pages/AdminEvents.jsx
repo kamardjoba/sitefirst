@@ -98,43 +98,47 @@ export default function AdminEvents(){
           value={form.description}
           onChange={e=>set({...form, description:e.target.value})}
         />
-        <div className="grid grid-cols-3 gap-3">
-          <label className="block text-sm text-neutral-400">
-            Цена VIP (₽)
-            <input
-              className="input w-full mt-1"
-              type="number"
-              min="0"
-              step="10"
-              placeholder="—"
-              value={form.price_vip}
-              onChange={e=>set({...form, price_vip:e.target.value})}
-            />
-          </label>
-          <label className="block text-sm text-neutral-400">
-            Цена сектор A (₽)
-            <input
-              className="input w-full mt-1"
-              type="number"
-              min="0"
-              step="10"
-              placeholder="—"
-              value={form.price_a}
-              onChange={e=>set({...form, price_a:e.target.value})}
-            />
-          </label>
-          <label className="block text-sm text-neutral-400">
-            Цена сектор B (₽)
-            <input
-              className="input w-full mt-1"
-              type="number"
-              min="0"
-              step="10"
-              placeholder="—"
-              value={form.price_b}
-              onChange={e=>set({...form, price_b:e.target.value})}
-            />
-          </label>
+        <div className="rounded-xl border border-neutral-700 bg-neutral-800/50 p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-white">Цены за места в секторах</h3>
+          <p className="text-xs text-neutral-400">Укажите цену билета для каждого сектора зала. Можно заполнить не все поля.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <label className="block text-sm text-neutral-400">
+              <span className="font-medium text-neutral-300">VIP</span>
+              <input
+                className="input w-full mt-1"
+                type="number"
+                min="0"
+                step="10"
+                placeholder="₽"
+                value={form.price_vip}
+                onChange={e=>set({...form, price_vip:e.target.value})}
+              />
+            </label>
+            <label className="block text-sm text-neutral-400">
+              <span className="font-medium text-neutral-300">Сектор A</span>
+              <input
+                className="input w-full mt-1"
+                type="number"
+                min="0"
+                step="10"
+                placeholder="₽"
+                value={form.price_a}
+                onChange={e=>set({...form, price_a:e.target.value})}
+              />
+            </label>
+            <label className="block text-sm text-neutral-400">
+              <span className="font-medium text-neutral-300">Сектор B</span>
+              <input
+                className="input w-full mt-1"
+                type="number"
+                min="0"
+                step="10"
+                placeholder="₽"
+                value={form.price_b}
+                onChange={e=>set({...form, price_b:e.target.value})}
+              />
+            </label>
+          </div>
         </div>
         <div>
           <label className="block text-sm mb-2">Фото события (опционально)</label>
