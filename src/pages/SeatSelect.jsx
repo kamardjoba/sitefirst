@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
 import { api } from '../utils/api'
 import { useCartStore } from '../store/cart'
 import SeatPicker from '../components/SeatPicker'
 import VenueZonesMap from '../components/VenueZonesMap'
 import { formatCurrency } from '../utils/currency'
-import { FaArrowLeft } from 'react-icons/fa'
+import { FaArrowLeft, FaShoppingCart, FaTicketAlt } from 'react-icons/fa'
 
 export default function SeatSelect() {
   const { id, sessionId: sessionIdParam } = useParams()
@@ -14,47 +14,38 @@ export default function SeatSelect() {
   const sessionId = sessionIdParam ? Number(sessionIdParam) : null
   const seatEventId = sessionId || eventId
   const navigate = useNavigate()
-  
-  // Получаем параметр зоны из URL
   const selectedZone = searchParams.get('zone')
-
   const addToCart = useCartStore(s => s.add)
 
-  const [seatsData, setSeatsData] = useState([])   // [{ seatId,row,seat,zone,status,price,zoneName,zoneColor }]
-  const [zonesInfo, setZonesInfo] = useState([])  // [{ code, name, color, minPrice, maxPrice }]
-  const [eventInfo, setEventInfo] = useState(null)  // { title, venueName, ... }
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState('')
-  const [selected, setSelected] = useState([])      // [{ row,col,price,seatId }]
-  const [viewMode, setViewMode] = useState('zones') // 'zones' или 'seats'
+  const [seatsData, setSeatsData] = useState([])
+  const [zonesInfo, setZonesInfo] = useState([])
+  const [eventInfo, setEventInfo] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [selected, setSelected] = useState([])
+  const [viewMode, setViewMode] = useState('zones')
 
-  // 1) Загружаем места события
   useEffect(() => {
     let alive = true
-    
     const loadSeats = async () => {
       if (!seatEventId) {
-        if (!alive) return
         setSeatsData([])
         setZonesInfo([])
         setError('Некорректный идентификатор события')
         setLoading(false)
         return
       }
-      if (!alive) return
       setLoading(true)
       setError('')
       try {
         const res = await api.get(`/api/events/${seatEventId}/seats`)
-        if (!res.ok) throw new Error(`fetch_failed_${res.status}`)
+        if (!res.ok) throw new Error('fetch_failed')
         const data = await res.json()
         if (!alive) return
-        // Поддержка старого формата (массив) и нового (объект с seats и zones)
         if (Array.isArray(data)) {
-          // Всегда загружаем все места - фильтрация будет на уровне filteredSeatsData
           setSeatsData(data)
           setZonesInfo([])
-        } else if (data.seats && Array.isArray(data.seats)) {
+        } else if (data.seats?.length) {
           setSeatsData(data.seats)
           setZonesInfo(data.zones || [])
         } else {
@@ -67,125 +58,75 @@ export default function SeatSelect() {
           if (alive) setEventInfo(ev)
         }
       } catch (e) {
-        if (!alive) return
-        setError('Не удалось загрузить схему зала')
+        if (alive) setError('Не удалось загрузить схему зала')
       } finally {
-        if (alive) {
-          setLoading(false)
-        }
+        if (alive) setLoading(false)
       }
     }
-    
     loadSeats()
-    
-    return () => {
-      alive = false
-    }
+    return () => { alive = false }
   }, [seatEventId])
 
-  // Обновляем данные при возврате на страницу (например, после покупки)
-  // Используем простой подход - данные обновятся при следующем изменении seatEventId
-  // или при ручном обновлении страницы
-
-  // Определяем режим просмотра на основе URL параметра
   useEffect(() => {
-    if (selectedZone) {
-      setViewMode('seats')
-    } else {
-      setViewMode('zones')
-    }
+    setViewMode(selectedZone ? 'seats' : 'zones')
   }, [selectedZone])
 
-  // 2) Фильтруем места по выбранной зоне
   const filteredSeatsData = useMemo(() => {
-    if (!selectedZone || viewMode === 'zones') {
-      return seatsData
-    }
+    if (!selectedZone || viewMode === 'zones') return seatsData
     return seatsData.filter(s => s.zone === selectedZone)
   }, [seatsData, selectedZone, viewMode])
 
-  // 3) Быстрые мапы по (row,col)
   const seatIdByRC = useMemo(() => {
     const m = new Map()
-    for (const s of filteredSeatsData) m.set(`${s.row}-${s.seat}`, s.seatId)
+    filteredSeatsData.forEach(s => m.set(`${s.row}-${s.seat}`, s.seatId))
     return m
   }, [filteredSeatsData])
 
   const seatPriceByRC = useMemo(() => {
     const m = new Map()
-    for (const s of filteredSeatsData) m.set(`${s.row}-${s.seat}`, Number(s.price || 0))
+    filteredSeatsData.forEach(s => m.set(`${s.row}-${s.seat}`, Number(s.price || 0)))
     return m
   }, [filteredSeatsData])
 
-  // 4) Собираем venue для пикера: rows/cols + безопасное zones с цветами
   const venueForPicker = useMemo(() => {
     if (!filteredSeatsData.length) return null
-
-    const maxRow  = Math.max(...filteredSeatsData.map(s => Number(s.row || 0)))
+    const maxRow = Math.max(...filteredSeatsData.map(s => Number(s.row || 0)))
     const maxSeat = Math.max(...filteredSeatsData.map(s => Number(s.seat || 0)))
-
-    // Строим справочник зон из zonesInfo или из данных мест
     const zones = {}
-    if (zonesInfo.length > 0) {
+    if (zonesInfo.length) {
       zonesInfo.forEach(z => {
-        zones[z.code] = {
-          code: z.code,
-          name: z.name || z.code,
-          color: z.color || '#999999',
-          minPrice: z.minPrice,
-          maxPrice: z.maxPrice
-        }
+        zones[z.code] = { code: z.code, name: z.name || z.code, color: z.color || '#6b7280', minPrice: z.minPrice, maxPrice: z.maxPrice }
       })
     } else {
-      // Fallback: строим из данных мест
       const zoneSet = new Set(filteredSeatsData.map(s => s.zone).filter(Boolean))
-      Array.from(zoneSet).forEach(z => {
+      zoneSet.forEach(z => {
         const zoneSeats = filteredSeatsData.filter(s => s.zone === z)
-        const prices = zoneSeats.map(s => Number(s.price || 0)).filter(p => p > 0)
+        const prices = zoneSeats.map(s => Number(s.price || 0)).filter(Boolean)
         zones[z] = {
-          code: z,
-          name: z,
-          color: zoneSeats[0]?.zoneColor || '#999999',
-          minPrice: prices.length > 0 ? Math.min(...prices) : 0,
-          maxPrice: prices.length > 0 ? Math.max(...prices) : 0
+          code: z, name: z,
+          color: zoneSeats[0]?.zoneColor || '#6b7280',
+          minPrice: prices.length ? Math.min(...prices) : 0,
+          maxPrice: prices.length ? Math.max(...prices) : 0
         }
       })
     }
-
-    return { rows: maxRow, cols: maxSeat, zones }   // <= всегда есть zones (пусть и пустой)
+    return { rows: maxRow, cols: maxSeat, zones }
   }, [filteredSeatsData, zonesInfo])
 
-  // Обработчик выбора зоны
   const handleZoneSelect = (zoneCode) => {
-    if (zoneCode) {
-      // Обновляем URL с параметром зоны
-      const basePath = `/shows/${eventId}`
-      const sessionPath = sessionId ? `/sessions/${sessionId}` : ''
-      navigate(`${basePath}${sessionPath}/seats?zone=${encodeURIComponent(zoneCode)}`)
-      setViewMode('seats')
-    } else {
-      // Показать все места
-      const basePath = `/shows/${eventId}`
-      const sessionPath = sessionId ? `/sessions/${sessionId}` : ''
-      navigate(`${basePath}${sessionPath}/seats`)
-      setViewMode('seats')
-    }
+    const base = `/shows/${eventId}${sessionId ? `/sessions/${sessionId}` : ''}/seats`
+    navigate(zoneCode ? `${base}?zone=${encodeURIComponent(zoneCode)}` : base)
+    setViewMode('seats')
   }
 
-  // 5) Переключение места
   function toggle(seat) {
-    // Пока filteredSeatsData не подгружены — ничего не делаем
     if (!filteredSeatsData.length) return
-
     const key = `${seat.row}-${seat.col}`
     const seatId = seatIdByRC.get(key)
-    const price  = seatPriceByRC.get(key) ?? seat.price
-
-    if (!seatId) return  // без seatId не добавляем "битое" место
-
+    const price = seatPriceByRC.get(key) ?? seat.price
+    if (!seatId) return
     const enriched = { ...seat, price: Number(price || 0), seatId }
-    const mk = (s) => `${s.row}-${s.col}`
-
+    const mk = s => `${s.row}-${s.col}`
     setSelected(cur =>
       cur.some(s => mk(s) === mk(enriched))
         ? cur.filter(s => mk(s) !== mk(enriched))
@@ -193,9 +134,8 @@ export default function SeatSelect() {
     )
   }
 
-  // 6) Добавление в корзину
-  const disabledAdd =
-    !filteredSeatsData.length || !selected.length || selected.some(s => !s.seatId)
+  const disabledAdd = !filteredSeatsData.length || !selected.length || selected.some(s => !s.seatId)
+  const totalSum = selected.reduce((s, x) => s + Number(x.price || 0), 0)
 
   function addSelectedToCart() {
     if (disabledAdd) return
@@ -213,12 +153,26 @@ export default function SeatSelect() {
     navigate('/cart')
   }
 
-  // UI
   if (loading) {
-    return <section className="p-4"><div className="text-neutral-400">Загружаем схему зала…</div></section>
+    return (
+      <section className="min-h-[50vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-neutral-400">
+          <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+          <p>Загрузка схемы зала…</p>
+        </div>
+      </section>
+    )
   }
+
   if (error || !seatsData.length) {
-    return <section className="p-4"><div className="text-red-400">{error || 'Нет данных по местам'}</div></section>
+    return (
+      <section className="p-6 max-w-lg mx-auto text-center space-y-4">
+        <p className="text-red-400">{error || 'Нет данных по местам'}</p>
+        <Link to={`/shows/${eventId}`} className="btn inline-flex items-center gap-2">
+          <FaArrowLeft /> Назад к событию
+        </Link>
+      </section>
+    )
   }
 
   if (viewMode === 'zones' || !selectedZone) {
@@ -226,23 +180,20 @@ export default function SeatSelect() {
       ? `${eventInfo.venueName}${eventInfo?.city ? `, ${eventInfo.city}` : ''}`
       : null
     return (
-      <section className="space-y-6">
-        <div className="flex items-center gap-4">
+      <section className="pb-24">
+        <header className="flex items-center gap-4 mb-6">
           <Link
             to={`/shows/${eventId}`}
-            className="p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 hover:text-white transition"
-            title="Назад к событию"
+            className="p-2.5 rounded-xl bg-neutral-800/80 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 hover:text-white transition"
+            aria-label="Назад"
           >
-            <FaArrowLeft />
+            <FaArrowLeft className="text-lg" />
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Выбор мест</h1>
-            <p className="text-neutral-400 text-sm mt-1">
-              {eventInfo?.title || 'Выберите зону зала'}
-            </p>
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-2xl font-bold truncate">{eventInfo?.title || 'Выбор мест'}</h1>
+            <p className="text-neutral-400 text-sm mt-0.5">{venueName || 'Выберите сектор'}</p>
           </div>
-        </div>
-
+        </header>
         <VenueZonesMap
           seats={seatsData}
           zones={zonesInfo}
@@ -253,43 +204,38 @@ export default function SeatSelect() {
     )
   }
 
-  // Режим просмотра мест
   const safeVenue = venueForPicker || { rows: 0, cols: 0, zones: {} }
   const currentZone = zonesInfo.find(z => z.code === selectedZone)
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4">
+    <section className="pb-32 md:pb-8">
+      <header className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+        <div className="flex items-center gap-3">
           <button
+            type="button"
             onClick={() => {
-              const basePath = `/shows/${eventId}`
-              const sessionPath = sessionId ? `/sessions/${sessionId}` : ''
-              navigate(`${basePath}${sessionPath}/seats`)
+              navigate(`/shows/${eventId}${sessionId ? `/sessions/${sessionId}` : ''}/seats`)
               setViewMode('zones')
             }}
-            className="p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 hover:text-white transition"
-            title="Вернуться к выбору зоны"
+            className="p-2.5 rounded-xl bg-neutral-800/80 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 hover:text-white transition"
+            aria-label="Другой сектор"
           >
-            <FaArrowLeft />
+            <FaArrowLeft className="text-lg" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold">
-              {currentZone ? `${currentZone.name} - Выбор мест` : 'Выбор мест'}
+            <h1 className="text-lg md:text-xl font-bold">
+              {currentZone ? currentZone.name : 'Зал'}
             </h1>
-            {currentZone && (
-              <p className="text-sm text-neutral-400 mt-1">
-                {currentZone.minPrice === currentZone.maxPrice 
-                  ? formatCurrency(currentZone.minPrice)
-                  : `${formatCurrency(currentZone.minPrice)} - ${formatCurrency(currentZone.maxPrice)}`
-                }
-              </p>
-            )}
+            <p className="text-neutral-400 text-sm">
+              {currentZone?.minPrice != null && (currentZone.minPrice === currentZone.maxPrice
+                ? formatCurrency(currentZone.minPrice)
+                : `${formatCurrency(currentZone.minPrice)} – ${formatCurrency(currentZone.maxPrice)}`)}
+            </p>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="card p-6 bg-gradient-to-br from-neutral-900 via-neutral-950 to-neutral-900 border-neutral-800">
+      <div className="rounded-2xl border border-neutral-800 bg-neutral-950/80 overflow-hidden">
         <SeatPicker
           venue={safeVenue}
           seats={filteredSeatsData}
@@ -298,40 +244,46 @@ export default function SeatSelect() {
         />
       </div>
 
-      {/* Панель выбранных мест */}
-      <div className="card p-6 bg-gradient-to-r from-brand-600/20 to-pink-600/20 border-brand-500/30">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <div className="text-neutral-300">
-              Выбрано мест: <span className="font-bold text-white text-lg">{selected.length}</span>
+      {/* Sticky bottom bar — как на Ticketmaster / Eventim */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 bg-neutral-950/95 border-t border-neutral-800 shadow-[0_-8px_32px_rgba(0,0,0,0.5)] md:rounded-t-2xl"
+        style={{ backdropFilter: 'saturate(180%) blur(12px)' }}
+      >
+        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-brand-500/20 border border-brand-500/50 flex items-center justify-center">
+              <FaTicketAlt className="text-xl text-brand-400" />
             </div>
-            {!!selected.length && (
-              <div className="text-neutral-400 text-sm">
-                Общая сумма: <span className="font-bold text-brand-400 text-lg">
-                  {formatCurrency(selected.reduce((s, x) => s + Number(x.price || 0), 0))}
-                </span>
-              </div>
-            )}
-            {selected.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {selected.map((seat, idx) => (
-                  <div
-                    key={idx}
-                    className="px-3 py-1 rounded-full bg-brand-500/20 border border-brand-500/50 text-xs text-neutral-200"
-                  >
-                    Ряд {seat.row}, Место {seat.col} · {formatCurrency(seat.price)}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="min-w-0">
+              <p className="font-semibold text-white">
+                {selected.length === 0
+                  ? 'Выберите места на схеме'
+                  : `${selected.length} ${selected.length === 1 ? 'билет' : selected.length < 5 ? 'билета' : 'билетов'}`}
+              </p>
+              {selected.length > 0 && (
+                <p className="text-sm text-neutral-400 truncate">
+                  {selected.map(s => `Ряд ${s.row}, место ${s.col}`).join(' · ')}
+                </p>
+              )}
+            </div>
           </div>
-          <button
-            className="btn bg-gradient-to-r from-brand-600 to-pink-600 hover:from-brand-700 hover:to-pink-700 text-white font-bold px-8 py-3 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={disabledAdd}
-            onClick={addSelectedToCart}
-          >
-            Добавить в корзину ({selected.length})
-          </button>
+          <div className="flex items-center gap-4 flex-shrink-0">
+            {selected.length > 0 && (
+              <div className="text-right">
+                <p className="text-xs text-neutral-500 uppercase tracking-wider">Итого</p>
+                <p className="text-xl font-bold text-white">{formatCurrency(totalSum)}</p>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={addSelectedToCart}
+              disabled={disabledAdd}
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold bg-brand-600 hover:bg-brand-500 text-white shadow-lg hover:shadow-brand-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-brand-600"
+            >
+              <FaShoppingCart className="text-lg" />
+              {selected.length ? `В корзину · ${formatCurrency(totalSum)}` : 'В корзину'}
+            </button>
+          </div>
         </div>
       </div>
     </section>
